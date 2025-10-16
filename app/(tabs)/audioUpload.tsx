@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { pickAndUploadAudio } from "../utils/audioUpload";
+import { pickAndUploadAudio } from "../../utils/audioUpload";
 
 export default function App() {
   const [uploading, setUploading] = useState(false);
