@@ -1,10 +1,10 @@
-import { Tabs } from 'expo-router';
+import { Tabs } from 'expo-router'; // 네비게이션 컴포넌트
 import React from 'react';
 
-import { HapticTab } from '@/components/haptic-tab';
+import { HapticTab } from '@/components/haptic-tab'; // 커스텀 햄틱 피드백이 있는 탭 버튼 컴포넌트
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from '@/hooks/use-color-scheme'; // 다크/라이트 모드 감지 훅
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -17,17 +17,17 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
       }}>
       <Tabs.Screen
-        name="index"
+        name="index" // index.tsx 파일 이름과 연결
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="alarm.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="record" // record.tsx 파일 이름과 연결
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Record',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="mic.fill" color={color} />,
         }}
       />
     </Tabs>

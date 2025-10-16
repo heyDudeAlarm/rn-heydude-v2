@@ -1,40 +1,36 @@
-import { Image } from "expo-image";
-import { StyleSheet } from "react-native";
+import React, { useState } from 'react';
+import { StyleSheet } from 'react-native';
 
-import ParallaxScrollView from "@/components/parallax-scroll-view";
-import App from "../main";
+import AddAlarmModal from '@/components/add-alarm-modal';
+import AlarmHeader from '@/components/alarm-header';
+import ParallaxScrollView from '@/components/parallax-scroll-view';
 
 export default function HomeScreen() {
+  const [isModalVisible, setIsModalVisible] = useState(false);
+
+  const handleAddAlarm = () => {
+    setIsModalVisible(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalVisible(false);
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: "#A1CEDC", dark: "#1D3D47" }}
-      headerImage={
-        <Image
-          source={require("@/assets/images/partial-react-logo.png")}
-          style={styles.reactLogo}
-        />
-      }
-    >
-      <App />
-    </ParallaxScrollView>
+    <>
+      <ParallaxScrollView>
+        <AlarmHeader onAddAlarm={handleAddAlarm} />
+        {/* 여기에 나중에 AlarmList 컴포넌트를 추가할 예정 */}
+      </ParallaxScrollView>
+      
+      <AddAlarmModal 
+        visible={isModalVisible} 
+        onClose={handleCloseModal} 
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: "absolute",
-  },
+  // 나중에 필요한 스타일들을 여기에 추가
 });
