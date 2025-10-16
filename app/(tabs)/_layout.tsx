@@ -1,8 +1,8 @@
 import { Tabs } from 'expo-router'; // 네비게이션 컴포넌트
 import React from 'react';
 
-import { HapticTab } from '@/components/haptic-tab'; // 커스텀 햄틱 피드백이 있는 탭 버튼 컴포넌트
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { HapticTab } from '@/components/HapticTab'; // 커스텀 햄틱 피드백이 있는 탭 버튼 컴포넌트
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme'; // 다크/라이트 모드 감지 훅
 

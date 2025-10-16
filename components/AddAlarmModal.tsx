@@ -9,8 +9,8 @@ import {
     TouchableOpacity,
     TouchableWithoutFeedback,
 } from 'react-native';
-import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
+import { ThemedText } from './ThemedText';
+import { ThemedView } from './ThemedView';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MODAL_HEIGHT = SCREEN_HEIGHT * 0.7; // 화면의 70% 높이

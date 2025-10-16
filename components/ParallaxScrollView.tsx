@@ -1,7 +1,7 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
 import type { PropsWithChildren } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
-import { ThemedView } from './themed-view';
+import { ThemedView } from './ThemedView';
 
 type Props = PropsWithChildren<{
 }>;

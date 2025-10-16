@@ -1,8 +1,8 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { StyleSheet, TouchableOpacity } from 'react-native';
-import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
-import { IconSymbol } from './ui/icon-symbol';
+import { ThemedText } from './ThemedText';
+import { ThemedView } from './ThemedView';
+import { IconSymbol } from './ui/IconSymbol';
 
 interface AlarmHeaderProps {
   onAddAlarm: () => void;

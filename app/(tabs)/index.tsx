@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
-import AddAlarmModal from '@/components/add-alarm-modal';
-import AlarmHeader from '@/components/alarm-header';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
+import AddAlarmModal from '@/components/AddAlarmModal';
+import AlarmHeader from '@/components/AlarmHeader';
+import ParallaxScrollView from '@/components/ParallaxScrollView';
 
 export default function HomeScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
