@@ -25,6 +25,37 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Project Structure
+
+```
+rn-heydude-v2/
+├── app/                    # Expo Router (file-based routing)
+│   ├── (tabs)/            # Tab navigation screens
+│   └── _layout.tsx
+├── components/             # React components
+│   ├── alarm/             # Alarm feature components
+│   │   ├── AddAlarmModal.tsx
+│   │   └── AlarmHeader.tsx
+│   ├── common/            # Shared components
+│   │   ├── ExternalLink.tsx
+│   │   ├── HelloWave.tsx
+│   │   ├── ThemedText.tsx
+│   │   └── ThemedView.tsx
+│   ├── layout/            # Layout components
+│   │   ├── AlarmListView.tsx
+│   │   └── ParallaxScrollView.tsx
+│   ├── navigation/        # Navigation-related components
+│   │   └── HapticTab.tsx
+│   └── ui/                # UI elements
+│       ├── IconSymbol.tsx
+│       ├── IconSymbol.ios.tsx
+│       └── collapsible.tsx
+├── constants/             # Theme and constants
+├── hooks/                 # Custom React hooks
+├── assets/                # Images, fonts, etc.
+└── scripts/               # Build and utility scripts
+```
+
 ## Get a fresh project
 
 When you're ready, run:

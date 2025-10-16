@@ -1,22 +1,25 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
 import type { PropsWithChildren } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
-import { ThemedView } from './ThemedView';
+import { ThemedView } from '../common/ThemedView';
 
 type Props = PropsWithChildren<{
+  showsVerticalScrollIndicator?: boolean;
 }>;
 
-export default function ParallaxScrollView({
+export default function AlarmListView({
   children,
+  showsVerticalScrollIndicator = true,
 }: Props) {
-  const backgroundColor = useThemeColor({ light: '#1D3D47', dark: '#1D3D47' }, 'background');
+  const backgroundColor = useThemeColor({}, 'background');
 
   return (
     <ScrollView
       style={[styles.container, { backgroundColor }]}
       contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={true}
-      scrollEventThrottle={16}>
+      showsVerticalScrollIndicator={showsVerticalScrollIndicator}
+      scrollEventThrottle={16}
+    >
       <ThemedView style={styles.content}>
         {children}
       </ThemedView>
