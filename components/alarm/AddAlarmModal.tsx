@@ -15,6 +15,7 @@ import { ThemedView } from '../common/ThemedView';
 import AlarmOptionsSection from './AlarmOptionsSection';
 import AlarmTimePicker from './AlarmTimePicker';
 import RepeatSettingsContent from './RepeatSettingsContent';
+import SoundSettingsContent from './SoundSettingsContent';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -34,10 +35,10 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
   const [repeatValue, setRepeatValue] = useState('없음');
   const [labelValue, setLabelValue] = useState('알람');
   const [soundValue, setSoundValue] = useState('레이더');
-  const [snoozeValue, setSnoozeValue] = useState('9분');
+  const [snoozeEnabled, setSnoozeEnabled] = useState(false);
   
   // 화면 전환 상태
-  const [currentView, setCurrentView] = useState<'main' | 'repeat'>('main');
+  const [currentView, setCurrentView] = useState<'main' | 'repeat' | 'sound'>('main');
   
   // 알람 설정 컴포넌트 위로 올라오는 애니메이션
   const translateY = React.useRef(new Animated.Value(SCREEN_HEIGHT)).current; // modal 위아래 애니메이션
@@ -157,6 +158,59 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
     });
   };
 
+  const handleLabelChange = (text: string) => {
+    console.log('Label changed to:', text);
+    setLabelValue(text);
+  };
+
+  const handleSoundPress = () => {
+    console.log('Sound button pressed, showing sound settings');
+    console.log('Setting currentView to sound');
+    setCurrentView('sound');
+    Animated.timing(slideAnim, {
+      toValue: -SCREEN_WIDTH * 2, // 사운드 화면으로 슬라이드 (세 번째 화면)
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleSoundSave = (selectedSound: string) => {
+    console.log('Sound save called with:', selectedSound);
+    // 사운드 키를 표시용 텍스트로 변환
+    const soundLabels: { [key: string]: string } = {
+      'radar': '레이더',
+      'classic': '클래식',
+      'bell': '벨',
+      'chime': '차임',
+      'digital': '디지털',
+      'horn': '호른',
+      'wave': '웨이브',
+      'marimba': '마림바'
+    };
+    setSoundValue(soundLabels[selectedSound] || selectedSound);
+    goBackToMain();
+  };
+
+  // 현재 사운드 값을 키로 변환하는 함수
+  const getCurrentSoundKey = () => {
+    const soundKeyMap: { [key: string]: string } = {
+      '레이더': 'radar',
+      '클래식': 'classic',
+      '벨': 'bell',
+      '차임': 'chime',
+      '디지털': 'digital',
+      '호른': 'horn',
+      '웨이브': 'wave',
+      '마림바': 'marimba'
+    };
+    return soundKeyMap[soundValue] || 'radar';
+  };
+
+  const handleSnoozeToggle = (toggled: boolean) => {
+    console.log('Snooze toggle changed to:', toggled);
+    setSnoozeEnabled(toggled);
+  };
+
   return (
     <>
       <Modal
@@ -213,11 +267,14 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
                   repeatValue={repeatValue}
                   labelValue={labelValue}
                   soundValue={soundValue}
-                  snoozeValue={snoozeValue}
+                  snoozeValue={snoozeEnabled ? '켜짐' : '꺼짐'}
+                  snoozeToggled={snoozeEnabled}
                   onRepeatPress={handleRepeatPress}
                   onLabelPress={() => console.log('Label pressed')}
-                  onSoundPress={() => console.log('Sound pressed')}
+                  onLabelChange={handleLabelChange}
+                  onSoundPress={handleSoundPress}
                   onSnoozePress={() => console.log('Snooze pressed')}
+                  onSnoozeToggle={handleSnoozeToggle}
                 />
               </ThemedView>
 
@@ -226,6 +283,15 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
                 <RepeatSettingsContent
                   selectedDays={selectedDays}
                   onSave={handleRepeatSave}
+                  onCancel={goBackToMain}
+                />
+              </ThemedView>
+
+              {/* 사운드 설정 화면 */}
+              <ThemedView style={styles.screenContainer}>
+                <SoundSettingsContent
+                  selectedSound={getCurrentSoundKey()}
+                  onSave={handleSoundSave}
                   onCancel={goBackToMain}
                 />
               </ThemedView>
@@ -281,7 +347,7 @@ const styles = StyleSheet.create({
   },
   slideContent: {
     flexDirection: 'row',
-    width: SCREEN_WIDTH * 2,
+    width: SCREEN_WIDTH * 3, // 3개 화면 지원 (메인, 반복, 사운드)
     height: '100%',
   },
   screenContainer: {
