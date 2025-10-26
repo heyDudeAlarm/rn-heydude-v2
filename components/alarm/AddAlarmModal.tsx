@@ -14,10 +14,9 @@ import { ThemedText } from '../common/ThemedText';
 import { ThemedView } from '../common/ThemedView';
 import AlarmOptionsSection from './AlarmOptionsSection';
 import AlarmTimePicker from './AlarmTimePicker';
-import RepeatSettingsModal from './RepeatSettingsModal';
+import RepeatSettingsContent from './RepeatSettingsContent';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const MODAL_HEIGHT = SCREEN_HEIGHT * 0.95; // 화면의 95% 높이 (상단 여백 조금)
+const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface AddAlarmModalProps {
   visible: boolean;
@@ -37,11 +36,13 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
   const [soundValue, setSoundValue] = useState('레이더');
   const [snoozeValue, setSnoozeValue] = useState('9분');
   
-  // 모달 상태
-  const [showRepeatModal, setShowRepeatModal] = useState(false);
+  // 화면 전환 상태
+  const [currentView, setCurrentView] = useState<'main' | 'repeat'>('main');
   
-  // 애니메이션을 위한 Animated Value (화면 높이만큼 아래에서 시작)
-  const translateY = React.useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  // 알람 설정 컴포넌트 위로 올라오는 애니메이션
+  const translateY = React.useRef(new Animated.Value(SCREEN_HEIGHT)).current; // modal 위아래 애니메이션
+  // 알람설정 옵션 자식 컴포넌트가 옆으로 나오는 애니메이션
+  const slideAnim = React.useRef(new Animated.Value(0)).current; // 좌우 슬라이드 애니메이션
 
   // 모달이 보일 때 애니메이션 실행
   React.useEffect(() => {
@@ -70,10 +71,13 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
   const panResponder = React.useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponder: () => {
+          console.log('PanResponder onStartShouldSetPanResponder, currentView:', currentView);
+          return currentView === 'main'; // 메인 화면일 때만 PanResponder 활성화
+        },
         onMoveShouldSetPanResponder: (_, gestureState) => {
-          // 아래쪽으로 드래그할 때만 반응
-          return gestureState.dy > 0 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+          // 메인 화면이고 아래쪽으로 드래그할 때만 반응
+          return currentView === 'main' && gestureState.dy > 0 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
         },
         onPanResponderMove: (_, gestureState) => {
           // 아래쪽으로만 드래그 허용
@@ -103,7 +107,7 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
           }
         },
       }),
-    [translateY, onClose]
+    [translateY, onClose, currentView]
   );
 
   // 반복 설정 관련 함수들
@@ -124,15 +128,33 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
   };
 
   const handleRepeatPress = () => {
-    console.log('Repeat button pressed, opening modal');
-    setShowRepeatModal(true);
+    console.log('Repeat button pressed, showing repeat settings');
+    console.log('Setting currentView to repeat');
+    setCurrentView('repeat');
+    Animated.timing(slideAnim, {
+      toValue: -SCREEN_WIDTH, // 왼쪽으로 슬라이드
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
   };
 
   const handleRepeatSave = (newSelectedDays: string[]) => {
     console.log('Repeat save called with:', newSelectedDays);
     setSelectedDays(newSelectedDays);
     setRepeatValue(getRepeatDisplayValue(newSelectedDays));
-    setShowRepeatModal(false);
+    goBackToMain();
+  };
+
+  const goBackToMain = () => {
+    console.log('goBackToMain called, sliding back to main');
+    Animated.timing(slideAnim, {
+      toValue: 0, // 원래 위치로
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      console.log('Animation completed, setting view to main');
+      setCurrentView('main');
+    });
   };
 
   return (
@@ -163,42 +185,54 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
         >
           {/* 드래그 핸들 */}
           <ThemedView style={[styles.dragHandle, { backgroundColor: tintColor, opacity: 0.3 }]} />
-          
-          {/* 헤더 */}
-          <ThemedView style={styles.header}>
-            <ThemedText type="title">알람 추가</ThemedText>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <ThemedText>완료</ThemedText>
-            </TouchableOpacity>
-          </ThemedView>
 
-          {/* 컨텐츠 영역 */}
-          <ThemedView style={styles.content}>
-            <AlarmTimePicker
-              selectedTime={selectedTime}
-              onTimeChange={setSelectedTime}
-            />
+          {/* 슬라이드 컨테이너 */}
+          <ThemedView style={styles.slideContainer}>
+            <Animated.View 
+              style={[
+                styles.slideContent,
+                { transform: [{ translateX: slideAnim }] }
+              ]}
+            >
+              {/* 메인 화면 */}
+              <ThemedView style={styles.screenContainer}>
+                {/* 헤더 */}
+                <ThemedView style={styles.header}>
+                  <ThemedText type="title">알람 추가</ThemedText>
+                  <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                    <ThemedText>완료</ThemedText>
+                  </TouchableOpacity>
+                </ThemedView>
 
-            <AlarmOptionsSection
-              repeatValue={repeatValue}
-              labelValue={labelValue}
-              soundValue={soundValue}
-              snoozeValue={snoozeValue}
-              onRepeatPress={handleRepeatPress}
-              onLabelPress={() => console.log('Label pressed')}
-              onSoundPress={() => console.log('Sound pressed')}
-              onSnoozePress={() => console.log('Snooze pressed')}
-            />
+                <AlarmTimePicker
+                  selectedTime={selectedTime}
+                  onTimeChange={setSelectedTime}
+                />
+
+                <AlarmOptionsSection
+                  repeatValue={repeatValue}
+                  labelValue={labelValue}
+                  soundValue={soundValue}
+                  snoozeValue={snoozeValue}
+                  onRepeatPress={handleRepeatPress}
+                  onLabelPress={() => console.log('Label pressed')}
+                  onSoundPress={() => console.log('Sound pressed')}
+                  onSnoozePress={() => console.log('Snooze pressed')}
+                />
+              </ThemedView>
+
+              {/* 반복 설정 화면 */}
+              <ThemedView style={styles.screenContainer}>
+                <RepeatSettingsContent
+                  selectedDays={selectedDays}
+                  onSave={handleRepeatSave}
+                  onCancel={goBackToMain}
+                />
+              </ThemedView>
+            </Animated.View>
           </ThemedView>
         </Animated.View>
       </Modal>
-
-      {/* 반복 설정 모달 - 독립적인 풀스크린 모달 */}
-      <RepeatSettingsModal
-        visible={showRepeatModal}
-        selectedDays={selectedDays}
-        onClose={handleRepeatSave}
-      />
     </>
   );
 }
@@ -241,7 +275,17 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 4,
   },
-  content: {
+  slideContainer: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  slideContent: {
+    flexDirection: 'row',
+    width: SCREEN_WIDTH * 2,
+    height: '100%',
+  },
+  screenContainer: {
+    width: SCREEN_WIDTH,
     flex: 1,
     padding: 20,
   },

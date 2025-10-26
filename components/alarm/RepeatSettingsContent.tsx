@@ -1,25 +1,13 @@
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
-    Animated,
-    Dimensions,
-    Modal,
     ScrollView,
     StyleSheet,
     TouchableOpacity
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../common/ThemedText';
 import { ThemedView } from '../common/ThemedView';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-interface RepeatSettingsModalProps {
-  visible: boolean;
-  selectedDays: string[];
-  onClose: (selectedDays: string[]) => void;
-}
 
 const DAYS_OF_WEEK = [
   { key: 'sunday', label: '일요일마다' },
@@ -38,43 +26,20 @@ const PRESET_OPTIONS = [
   { key: 'weekends', label: '주말 (토~일)' },
 ];
 
-export default function RepeatSettingsModal({ visible, selectedDays, onClose }: RepeatSettingsModalProps) {
-  console.log('RepeatSettingsModal rendered, visible:', visible, 'selectedDays:', selectedDays);
-  
+interface RepeatSettingsContentProps {
+  selectedDays: string[];
+  onSave: (selectedDays: string[]) => void;
+  onCancel: () => void;
+}
+
+export default function RepeatSettingsContent({ selectedDays, onSave, onCancel }: RepeatSettingsContentProps) {
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
-  const insets = useSafeAreaInsets();
   const [tempSelectedDays, setTempSelectedDays] = useState<string[]>(selectedDays);
-  
-  // props가 변경될 때 내부 상태 동기화
-  useEffect(() => {
+
+  React.useEffect(() => {
     setTempSelectedDays(selectedDays);
   }, [selectedDays]);
-  
-  // 오른쪽 슬라이드 애니메이션을 위한 Animated Value
-  const slideAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
-
-  // 모달이 보일 때 애니메이션 실행
-  useEffect(() => {
-    if (visible) {
-      // 오른쪽에서 왼쪽으로 슬라이드인
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      // 왼쪽에서 오른쪽으로 슬라이드아웃
-      Animated.timing(slideAnim, {
-        toValue: SCREEN_WIDTH,
-        duration: 250,
-        useNativeDriver: true,
-      }).start(() => {
-        // 애니메이션 완료 후 초기값으로 리셋
-        slideAnim.setValue(SCREEN_WIDTH);
-      });
-    }
-  }, [visible, slideAnim]);
 
   const toggleDay = (dayKey: string) => {
     setTempSelectedDays(prev => {
@@ -103,15 +68,9 @@ export default function RepeatSettingsModal({ visible, selectedDays, onClose }: 
     }
   };
 
-  const handleSave = () => {
-    onClose(tempSelectedDays);
-  };
-
   const handleCancel = () => {
-    // 임시 선택값을 원래대로 되돌리기
     setTempSelectedDays(selectedDays);
-    // 모달 닫기 (애니메이션은 useEffect에서 처리)
-    onClose(selectedDays);
+    onCancel();
   };
 
   const getRepeatDescription = () => {
@@ -131,32 +90,22 @@ export default function RepeatSettingsModal({ visible, selectedDays, onClose }: 
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="none"
-      presentationStyle="fullScreen"
-    >
-      <Animated.View 
-        style={[
-          styles.container, 
-          { 
-            backgroundColor,
-            paddingTop: insets.top,
-            transform: [{ translateX: slideAnim }]
-          }
-        ]}
-      >
+    <ThemedView style={[styles.container, { backgroundColor }]}>
       {/* 헤더 */}
       <ThemedView style={styles.header}>
-        <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
+        <TouchableOpacity 
+          onPress={handleCancel} 
+          style={styles.cancelButton}
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
           <ThemedText style={[styles.headerButtonText, { color: tintColor }]}>취소</ThemedText>
         </TouchableOpacity>
         
-        <ThemedText type="title">반복</ThemedText>
+        <ThemedText type="title" style={styles.centerTitle}>반복</ThemedText>
         
-        <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
-          <ThemedText style={[styles.headerButtonText, { color: tintColor }]}>저장</ThemedText>
-        </TouchableOpacity>
+        {/* 오른쪽 공간을 비워두기 위한 빈 뷰 */}
+        <ThemedView style={styles.emptySpace} />
       </ThemedView>
 
       <ScrollView style={styles.content}>
@@ -206,8 +155,7 @@ export default function RepeatSettingsModal({ visible, selectedDays, onClose }: 
           <ThemedText style={styles.previewTitle}>선택됨: {getRepeatDescription()}</ThemedText>
         </ThemedView>
       </ScrollView>
-      </Animated.View>
-    </Modal>
+    </ThemedView>
   );
 }
 
@@ -219,17 +167,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 10,
     paddingVertical: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
   cancelButton: {
-    minWidth: 50,
+    minWidth: 80,
+    backgroundColor: 'rgba(255, 0, 0, 0.1)', // 디버깅용 빨간 배경
+    paddingHorizontal: 20,
+    paddingVertical: 15,
   },
-  saveButton: {
-    minWidth: 50,
-    alignItems: 'flex-end',
+  emptySpace: {
+    minWidth: 80,
+  },
+  centerTitle: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
   },
   headerButtonText: {
     fontSize: 17,
