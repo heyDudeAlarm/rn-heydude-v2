@@ -69,8 +69,12 @@ export default function RepeatSettingsContent({ selectedDays, onSave, onCancel }
   };
 
   const handleCancel = () => {
+    console.log('🚀 handleCancel function executed!');
+    console.log('🔄 Resetting tempSelectedDays to:', selectedDays);
     setTempSelectedDays(selectedDays);
+    console.log('📞 Calling onCancel function...');
     onCancel();
+    console.log('✅ onCancel called successfully');
   };
 
   const getRepeatDescription = () => {
@@ -94,12 +98,15 @@ export default function RepeatSettingsContent({ selectedDays, onSave, onCancel }
       {/* 헤더 */}
       <ThemedView style={styles.header}>
         <TouchableOpacity 
-          onPress={handleCancel} 
-          style={styles.cancelButton}
-          activeOpacity={0.7}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          onPress={() => {
+            console.log('🔥 CANCEL BUTTON PRESSED!');
+            handleCancel();
+          }} 
+          style={[styles.cancelButton]}
+          activeOpacity={0.3}
+          hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
         >
-          <ThemedText style={[styles.headerButtonText, { color: tintColor }]}>취소</ThemedText>
+          <ThemedText style={[styles.headerButtonText]}>취소</ThemedText>
         </TouchableOpacity>
         
         <ThemedText type="title" style={styles.centerTitle}>반복</ThemedText>
@@ -167,16 +174,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
   cancelButton: {
-    minWidth: 80,
-    backgroundColor: 'rgba(255, 0, 0, 0.1)', // 디버깅용 빨간 배경
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    minWidth: 100,
+    backgroundColor: 'red',
+    paddingHorizontal: 25,
+    paddingVertical: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptySpace: {
     minWidth: 80,
