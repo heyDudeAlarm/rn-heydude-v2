@@ -27,7 +27,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="audioUpload" // record.tsx 파일 이름과 연결
+        name="audioUpload"
+        options={{
+          title: "Upload",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="arrow.up.circle.fill" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="audioRecord"
         options={{
           title: "Record",
           tabBarIcon: ({ color }) => (

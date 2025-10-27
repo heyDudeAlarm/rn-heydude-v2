@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { Audio } from "expo-av";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,9 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Audio } from "expo-av";
 import { pickAndUploadAudio } from "../../utils/audioUpload";
-import { listFiles, deleteFile, getSignedUrl } from "../../utils/storage";
+import { deleteFile, getSignedUrl, listFiles } from "../../utils/storage";
 
 interface StorageFile {
   name: string;
@@ -19,10 +19,7 @@ interface StorageFile {
   updated_at: string;
   created_at: string;
   last_accessed_at: string;
-  metadata: {
-    size: number;
-    mimetype: string;
-  };
+  metadata: Record<string, any>;
 }
 
 export default function App() {
@@ -179,35 +176,31 @@ export default function App() {
 
   // 파일 삭제
   const handleDelete = async (fileName: string) => {
-    Alert.alert(
-      "파일 삭제",
-      `"${fileName}"을(를) 삭제하시겠습니까?`,
-      [
-        { text: "취소", style: "cancel" },
-        {
-          text: "삭제",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const { error } = await deleteFile("audios", [
-                `uploads/${fileName}`,
-              ]);
+    Alert.alert("파일 삭제", `"${fileName}"을(를) 삭제하시겠습니까?`, [
+      { text: "취소", style: "cancel" },
+      {
+        text: "삭제",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const { error } = await deleteFile("audios", [
+              `uploads/${fileName}`,
+            ]);
 
-              if (error) {
-                Alert.alert("오류", "파일 삭제에 실패했습니다.");
-                return;
-              }
-
-              Alert.alert("성공", "파일이 삭제되었습니다.");
-              await loadStorageFiles();
-            } catch (error) {
-              console.error("삭제 에러:", error);
-              Alert.alert("오류", "파일 삭제 중 문제가 발생했습니다.");
+            if (error) {
+              Alert.alert("오류", "파일 삭제에 실패했습니다.");
+              return;
             }
-          },
+
+            Alert.alert("성공", "파일이 삭제되었습니다.");
+            await loadStorageFiles();
+          } catch (error) {
+            console.error("삭제 에러:", error);
+            Alert.alert("오류", "파일 삭제 중 문제가 발생했습니다.");
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   // 파일 크기 포맷
@@ -237,9 +230,7 @@ export default function App() {
             style={[styles.actionButton, styles.playButton]}
             onPress={() => handlePlayPause(item.name)}
           >
-            <Text style={styles.actionButtonText}>
-              {isPlaying ? "⏸" : "▶"}
-            </Text>
+            <Text style={styles.actionButtonText}>{isPlaying ? "⏸" : "▶"}</Text>
           </TouchableOpacity>
 
           {isPlaying && (
@@ -288,7 +279,11 @@ export default function App() {
         </Text>
 
         {loading && !refreshing ? (
-          <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+          <ActivityIndicator
+            size="large"
+            color="#007AFF"
+            style={styles.loader}
+          />
         ) : storageFiles.length === 0 ? (
           <Text style={styles.emptyText}>업로드된 파일이 없습니다.</Text>
         ) : (
