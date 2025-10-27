@@ -57,7 +57,7 @@ export default function App() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Audio Upload</Text>
-
+      {/* TODO 인증된 사용자만 업로드 하도록 후에 수정 */}
       {/* 오디오 업로드 버튼 */}
       <TouchableOpacity
         style={[styles.uploadButton, uploading && styles.uploadButtonDisabled]}
@@ -68,7 +68,7 @@ export default function App() {
           <ActivityIndicator color="#fff" />
         ) : (
           <Text style={styles.uploadButtonText}>
-            오디오 파일 업로드 (최대 2MB)
+            오디오 파일 업로드 (최대 5MB)
           </Text>
         )}
       </TouchableOpacity>
