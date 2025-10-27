@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Audio } from "expo-av";
 import { pickAndUploadAudio } from "../../utils/audioUpload";
-import { listFiles, getPublicUrl, deleteFile } from "../../utils/storage";
+import { listFiles, deleteFile, getSignedUrl } from "../../utils/storage";
 
 interface StorageFile {
   name: string;
@@ -115,8 +115,6 @@ export default function App() {
   // 오디오 재생/일시정지
   const handlePlayPause = async (fileName: string) => {
     try {
-      const fileUrl = getPublicUrl("audios", `uploads/${fileName}`);
-
       // 같은 파일을 재생 중이면 일시정지/재생 토글
       if (playingFile === fileName && sound) {
         const status = await sound.getStatusAsync();
@@ -133,6 +131,19 @@ export default function App() {
       // 기존 사운드 정리
       if (sound) {
         await sound.unloadAsync();
+      }
+
+      // 서명된 URL 가져오기 (1시간 유효)
+      const { url: fileUrl, error } = await getSignedUrl(
+        "audios",
+        `uploads/${fileName}`,
+        3600
+      );
+
+      if (error || !fileUrl) {
+        console.error("URL 가져오기 에러:", error);
+        Alert.alert("오류", "오디오 파일 URL을 가져올 수 없습니다.");
+        return;
       }
 
       // 새로운 오디오 로드 및 재생
