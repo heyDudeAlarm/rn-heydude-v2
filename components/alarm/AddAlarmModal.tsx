@@ -42,7 +42,7 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
   
   // 알람 설정 컴포넌트 위로 올라오는 애니메이션
   const translateY = React.useRef(new Animated.Value(SCREEN_HEIGHT)).current; // modal 위아래 애니메이션
-  // 알람설정 옵션 자식 컴포넌트가 옆으로 나오는 애니메이션
+  // 화면 슬라이드 애니메이션
   const slideAnim = React.useRef(new Animated.Value(0)).current; // 좌우 슬라이드 애니메이션
 
   // 모달이 보일 때 애니메이션 실행
@@ -130,7 +130,6 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
 
   const handleRepeatPress = () => {
     console.log('Repeat button pressed, showing repeat settings');
-    console.log('Setting currentView to repeat');
     setCurrentView('repeat');
     Animated.timing(slideAnim, {
       toValue: -SCREEN_WIDTH, // 왼쪽으로 슬라이드
@@ -153,7 +152,6 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
-      console.log('Animation completed, setting view to main');
       setCurrentView('main');
     });
   };
@@ -165,7 +163,6 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
 
   const handleSoundPress = () => {
     console.log('Sound button pressed, showing sound settings');
-    console.log('Setting currentView to sound');
     setCurrentView('sound');
     Animated.timing(slideAnim, {
       toValue: -SCREEN_WIDTH * 2, // 사운드 화면으로 슬라이드 (세 번째 화면)
@@ -270,30 +267,32 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
                   snoozeValue={snoozeEnabled ? '켜짐' : '꺼짐'}
                   snoozeToggled={snoozeEnabled}
                   onRepeatPress={handleRepeatPress}
-                  onLabelPress={() => console.log('Label pressed')}
                   onLabelChange={handleLabelChange}
                   onSoundPress={handleSoundPress}
-                  onSnoozePress={() => console.log('Snooze pressed')}
                   onSnoozeToggle={handleSnoozeToggle}
                 />
               </ThemedView>
 
-              {/* 반복 설정 화면 */}
               <ThemedView style={styles.screenContainer}>
-                <RepeatSettingsContent
-                  selectedDays={selectedDays}
-                  onSave={handleRepeatSave}
-                  onCancel={goBackToMain}
-                />
+                { currentView === 'repeat' && (
+                  <RepeatSettingsContent
+                    selectedDays={selectedDays}
+                    onSave={handleRepeatSave}
+                    onCancel={goBackToMain}
+                  />
+                )}
               </ThemedView>
+
 
               {/* 사운드 설정 화면 */}
               <ThemedView style={styles.screenContainer}>
-                <SoundSettingsContent
-                  selectedSound={getCurrentSoundKey()}
-                  onSave={handleSoundSave}
-                  onCancel={goBackToMain}
-                />
+                { currentView === 'sound' && (
+                  <SoundSettingsContent
+                    selectedSound={getCurrentSoundKey()}
+                    onSave={handleSoundSave}
+                    onCancel={goBackToMain}
+                  />
+                )}
               </ThemedView>
             </Animated.View>
           </ThemedView>

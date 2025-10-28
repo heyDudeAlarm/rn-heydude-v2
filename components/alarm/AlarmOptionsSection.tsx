@@ -10,10 +10,8 @@ interface AlarmOptionsSectionProps {
   snoozeValue: string;
   snoozeToggled: boolean;
   onRepeatPress?: () => void;
-  onLabelPress?: () => void;
   onLabelChange?: (text: string) => void;
   onSoundPress?: () => void;
-  onSnoozePress?: () => void;
   onSnoozeToggle?: (toggled: boolean) => void;
 }
 
@@ -24,10 +22,8 @@ export default function AlarmOptionsSection({
   snoozeValue,
   snoozeToggled,
   onRepeatPress,
-  onLabelPress,
   onLabelChange,
   onSoundPress,
-  onSnoozePress,
   onSnoozeToggle,
 }: AlarmOptionsSectionProps) {
   return (
@@ -42,7 +38,6 @@ export default function AlarmOptionsSection({
         label="레이블" 
         value={labelValue}
         type="input"
-        onPress={onLabelPress}
         onChangeText={onLabelChange}
       />
       
