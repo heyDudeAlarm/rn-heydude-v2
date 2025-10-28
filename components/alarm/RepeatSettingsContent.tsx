@@ -2,9 +2,9 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import React, { useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity
 } from 'react-native';
 import { ThemedText } from '../common/ThemedText';
 import { ThemedView } from '../common/ThemedView';
@@ -69,12 +69,9 @@ export default function RepeatSettingsContent({ selectedDays, onSave, onCancel }
   };
 
   const handleCancel = () => {
-    console.log('🚀 handleCancel function executed!');
-    console.log('🔄 Resetting tempSelectedDays to:', selectedDays);
     setTempSelectedDays(selectedDays);
-    console.log('📞 Calling onCancel function...');
+    onSave(tempSelectedDays);
     onCancel();
-    console.log('✅ onCancel called successfully');
   };
 
   const getRepeatDescription = () => {

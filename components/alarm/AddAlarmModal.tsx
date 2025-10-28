@@ -19,12 +19,21 @@ import SoundSettingsContent from './SoundSettingsContent';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
+export interface AlarmData {
+  selectedTime: Date;
+  repeatValue: string;
+  labelValue: string;
+  soundValue: string;
+  snoozeValue: string;
+}
+
 interface AddAlarmModalProps {
   visible: boolean;
   onClose: () => void;
+  onSave: (alarmData: AlarmData) => void;
 }
 
-export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) {
+export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModalProps) {
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
   const insets = useSafeAreaInsets();
@@ -146,7 +155,6 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
   };
 
   const goBackToMain = () => {
-    console.log('goBackToMain called, sliding back to main');
     Animated.timing(slideAnim, {
       toValue: 0, // 원래 위치로
       duration: 300,
@@ -172,7 +180,6 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
   };
 
   const handleSoundSave = (selectedSound: string) => {
-    console.log('Sound save called with:', selectedSound);
     // 사운드 키를 표시용 텍스트로 변환
     const soundLabels: { [key: string]: string } = {
       'radar': '레이더',
@@ -185,7 +192,6 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
       'marimba': '마림바'
     };
     setSoundValue(soundLabels[selectedSound] || selectedSound);
-    goBackToMain();
   };
 
   // 현재 사운드 값을 키로 변환하는 함수
@@ -206,6 +212,25 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
   const handleSnoozeToggle = (toggled: boolean) => {
     console.log('Snooze toggle changed to:', toggled);
     setSnoozeEnabled(toggled);
+  };
+
+  const handleComplete = () => {
+    // 알람 데이터를 JSON 객체로 수집
+    const alarmData: AlarmData = {
+      selectedTime,
+      repeatValue,
+      labelValue,
+      soundValue,
+      snoozeValue: snoozeEnabled ? '켜짐' : '꺼짐'
+    };
+    
+    console.log('Complete button pressed, alarm data:', alarmData);
+    
+    // 메인페이지로 데이터 전달
+    onSave(alarmData);
+    
+    // 모달 닫기
+    onClose();
   };
 
   return (
@@ -249,9 +274,18 @@ export default function AddAlarmModal({ visible, onClose }: AddAlarmModalProps) 
               <ThemedView style={styles.screenContainer}>
                 {/* 헤더 */}
                 <ThemedView style={styles.header}>
-                  <ThemedText type="title">알람 추가</ThemedText>
-                  <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                    <ThemedText>완료</ThemedText>
+                  <ThemedView style={styles.titleContainer}>
+                    <ThemedText 
+                      type="title"
+                      style={styles.headerTitle}
+                      allowFontScaling={false}
+                      numberOfLines={1}
+                    >
+                      알람 추가
+                    </ThemedText>
+                  </ThemedView>
+                  <TouchableOpacity onPress={handleComplete} style={styles.closeButton}>
+                    <ThemedText style={styles.completeText}>완료</ThemedText>
                   </TouchableOpacity>
                 </ThemedView>
 
@@ -333,12 +367,38 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 25, // 상단 패딩 더 크게
+    paddingBottom: 20, // 하단 패딩
+    minHeight: 70, // 최소 높이 더 크게
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
+  titleContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    height: 40, // 명시적 높이
+    paddingVertical: 4,
+  },
+  headerTitle: {
+    fontSize: 18, // 폰트 크기 명시적 설정
+    fontWeight: '600', // 폰트 굵기 명시적 설정
+    lineHeight: 28, // 라인 높이 더 크게
+    includeFontPadding: false, // Android 폰트 패딩 제거
+    textAlignVertical: 'center', // Android 텍스트 정렬
+  },
   closeButton: {
-    padding: 4,
+    padding: 8, // 패딩 더 크게
+    minHeight: 32, // 최소 높이 설정
+    justifyContent: 'center',
+  },
+  completeText: {
+    fontSize: 16, // 폰트 크기 명시적 설정
+    fontWeight: '500', // 폰트 굵기
+    lineHeight: 22, // 라인 높이 더 크게
+    paddingVertical: 2, // 텍스트 상하 패딩
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   slideContainer: {
     flex: 1,
