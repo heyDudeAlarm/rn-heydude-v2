@@ -1,6 +1,9 @@
+import {
+  pickAndUploadAudio,
+  pickMultipleAudiosAndUpload,
+} from "@/utils/audioUpload";
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
-import { pickAndUploadAudio, pickMultipleAudiosAndUpload } from "@/utils/audioUpload";
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function AudioUploadExample() {
   const [uploading, setUploading] = useState(false);
@@ -23,7 +26,9 @@ export default function AudioUploadExample() {
         setUploadedUrl(result.url);
         Alert.alert(
           "업로드 성공",
-          `파일: ${result.fileName}\n크기: ${(result.fileSize! / 1024).toFixed(2)} KB`
+          `파일: ${result.fileName}\n크기: ${(result.fileSize! / 1024).toFixed(
+            2
+          )} KB`
         );
       }
     } catch (error) {
@@ -38,7 +43,10 @@ export default function AudioUploadExample() {
     try {
       setUploading(true);
 
-      const result = await pickMultipleAudiosAndUpload("audio-files", "uploads");
+      const result = await pickMultipleAudiosAndUpload(
+        "audio-files",
+        "uploads"
+      );
 
       // 결과 메시지 생성
       let message = "";
@@ -72,7 +80,7 @@ export default function AudioUploadExample() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>오디오 업로드</Text>
-      <Text style={styles.subtitle}>최대 파일 크기: 2MB</Text>
+      <Text style={styles.subtitle}>최대 파일 크기: 5MB</Text>
 
       <TouchableOpacity
         style={[styles.button, uploading && styles.buttonDisabled]}

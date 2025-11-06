@@ -1,8 +1,8 @@
-import * as DocumentPicker from "expo-document-picker";
 import { Audio } from "expo-av";
+import * as DocumentPicker from "expo-document-picker";
 import { uploadFile } from "./storage";
 
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB in bytes
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
 
 export interface AudioUploadResult {
   url: string | null;
@@ -51,30 +51,35 @@ export async function pickAndUploadAudio(
     const file = result.assets[0];
 
     // 파일 크기 검증
-    if (!validateFileSize(file.size)) {
+    const fileSize = file.size || 0;
+    if (!validateFileSize(fileSize)) {
       const error = new Error(
-        `파일 크기가 너무 큽니다. 최대 2MB까지 업로드 가능합니다. (현재: ${formatFileSize(file.size)})`
+        `파일 크기가 너무 큽니다. 최대 5MB까지 업로드 가능합니다. (현재: ${formatFileSize(
+          fileSize
+        )})`
       );
       return { url: null, path: null, error };
     }
 
     // 파일 확장자 추출
     const fileExtension = file.name.split(".").pop() || "mp3";
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+    const fileName = `${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(7)}.${fileExtension}`;
     const filePath = folder ? `${folder}/${fileName}` : fileName;
-
-    // URI를 Blob으로 변환
-    const response = await fetch(file.uri);
-    const blob = await response.blob();
 
     // MIME 타입 결정
     const mimeType = file.mimeType || "audio/mpeg";
+
+    // React Native에서 fetch를 사용하여 파일을 ArrayBuffer로 읽기
+    const response = await fetch(file.uri);
+    const arrayBuffer = await response.arrayBuffer();
 
     // Supabase Storage에 업로드
     const uploadResult = await uploadFile({
       bucket,
       path: filePath,
-      file: blob,
+      file: arrayBuffer,
       contentType: mimeType,
     });
 
@@ -150,14 +155,16 @@ export async function uploadRecordedAudio(
   folder: string = ""
 ): Promise<AudioUploadResult> {
   try {
-    // URI에서 파일 정보 가져오기
-    const fileInfo = await fetch(recordingUri);
-    const blob = await fileInfo.blob();
+    // fetch를 사용하여 파일을 ArrayBuffer로 읽기
+    const response = await fetch(recordingUri);
+    const arrayBuffer = await response.arrayBuffer();
 
     // 파일 크기 검증
-    if (!validateFileSize(blob.size)) {
+    if (!validateFileSize(arrayBuffer.byteLength)) {
       const error = new Error(
-        `녹음 파일이 너무 큽니다. 최대 2MB까지 업로드 가능합니다. (현재: ${formatFileSize(blob.size)})`
+        `녹음 파일이 너무 큽니다. 최대 5MB까지 업로드 가능합니다. (현재: ${formatFileSize(
+          arrayBuffer.byteLength
+        )})`
       );
       return { url: null, path: null, error };
     }
@@ -170,14 +177,14 @@ export async function uploadRecordedAudio(
     const uploadResult = await uploadFile({
       bucket,
       path: filePath,
-      file: blob,
+      file: arrayBuffer,
       contentType: "audio/m4a",
     });
 
     return {
       ...uploadResult,
       fileName,
-      fileSize: blob.size,
+      fileSize: arrayBuffer.byteLength,
     };
   } catch (error) {
     console.error("Upload recorded audio error:", error);
@@ -214,27 +221,32 @@ export async function pickMultipleAudiosAndUpload(
 
     // 각 파일 처리
     for (const file of result.assets) {
+      const fileSize = file.size || 0;
+
       // 파일 크기 검증
-      if (!validateFileSize(file.size)) {
+      if (!validateFileSize(fileSize)) {
         skipped.push({
           fileName: file.name,
-          reason: `파일 크기 초과 (${formatFileSize(file.size)}, 최대 2MB)`,
+          reason: `파일 크기 초과 (${formatFileSize(fileSize)}, 최대 5MB)`,
         });
         continue;
       }
 
       try {
         const fileExtension = file.name.split(".").pop() || "mp3";
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+        const fileName = `${Date.now()}-${Math.random()
+          .toString(36)
+          .substring(7)}.${fileExtension}`;
         const filePath = folder ? `${folder}/${fileName}` : fileName;
 
+        // fetch를 사용하여 파일을 ArrayBuffer로 읽기
         const response = await fetch(file.uri);
-        const blob = await response.blob();
+        const arrayBuffer = await response.arrayBuffer();
 
         const uploadResult = await uploadFile({
           bucket,
           path: filePath,
-          file: blob,
+          file: arrayBuffer,
           contentType: file.mimeType || "audio/mpeg",
         });
 
@@ -244,7 +256,7 @@ export async function pickMultipleAudiosAndUpload(
           uploads.push({
             ...uploadResult,
             fileName: file.name,
-            fileSize: file.size,
+            fileSize,
           });
         }
       } catch (error) {

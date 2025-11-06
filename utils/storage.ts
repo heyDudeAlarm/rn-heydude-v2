@@ -3,7 +3,7 @@ import { supabase } from "./supabase";
 export interface UploadOptions {
   bucket: string;
   path: string;
-  file: Blob | File;
+  file: Blob | File | ArrayBuffer | Uint8Array;
   contentType?: string;
 }
 
