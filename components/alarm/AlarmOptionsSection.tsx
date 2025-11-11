@@ -8,10 +8,11 @@ interface AlarmOptionsSectionProps {
   labelValue: string;
   soundValue: string;
   snoozeValue: string;
+  snoozeToggled: boolean;
   onRepeatPress?: () => void;
-  onLabelPress?: () => void;
+  onLabelChange?: (text: string) => void;
   onSoundPress?: () => void;
-  onSnoozePress?: () => void;
+  onSnoozeToggle?: (toggled: boolean) => void;
 }
 
 export default function AlarmOptionsSection({
@@ -19,10 +20,11 @@ export default function AlarmOptionsSection({
   labelValue,
   soundValue,
   snoozeValue,
+  snoozeToggled,
   onRepeatPress,
-  onLabelPress,
+  onLabelChange,
   onSoundPress,
-  onSnoozePress,
+  onSnoozeToggle,
 }: AlarmOptionsSectionProps) {
   return (
     <ThemedView style={styles.optionsContainer}>
@@ -35,7 +37,8 @@ export default function AlarmOptionsSection({
       <AlarmOptionRow 
         label="레이블" 
         value={labelValue}
-        onPress={onLabelPress}
+        type="input"
+        onChangeText={onLabelChange}
       />
       
       <AlarmOptionRow 
@@ -47,7 +50,9 @@ export default function AlarmOptionsSection({
       <AlarmOptionRow 
         label="다시 알림" 
         value={snoozeValue}
-        onPress={onSnoozePress}
+        type="toggle"
+        isToggled={snoozeToggled}
+        onToggle={onSnoozeToggle}
       />
     </ThemedView>
   );
