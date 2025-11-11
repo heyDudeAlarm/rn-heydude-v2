@@ -2,9 +2,9 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import React, { useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity
 } from 'react-native';
 import { ThemedText } from '../common/ThemedText';
 import { ThemedView } from '../common/ThemedView';
@@ -42,7 +42,6 @@ export default function SoundSettingsContent({ selectedSound, onSave, onCancel }
   };
 
   const handleCancel = () => {
-    console.log('🔥 Sound Cancel button pressed!');
     setTempSelectedSound(selectedSound);
     onCancel();
   };

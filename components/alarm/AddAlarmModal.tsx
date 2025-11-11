@@ -1,4 +1,5 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { AlarmData, DayOfWeek } from '@/types/alarm';
 import React, { useState } from 'react';
 import {
   Animated,
@@ -19,14 +20,6 @@ import SoundSettingsContent from './SoundSettingsContent';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
-export interface AlarmData {
-  selectedTime: Date;
-  repeatValue: string;
-  labelValue: string;
-  soundValue: string;
-  snoozeValue: string;
-}
-
 interface AddAlarmModalProps {
   visible: boolean;
   onClose: () => void;
@@ -40,7 +33,7 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
   
   // 알람 설정 상태
   const [selectedTime, setSelectedTime] = useState(new Date());
-  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([]);
   const [repeatValue, setRepeatValue] = useState('없음');
   const [labelValue, setLabelValue] = useState('알람');
   const [soundValue, setSoundValue] = useState('레이더');
@@ -83,11 +76,15 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
       PanResponder.create({
         onStartShouldSetPanResponder: () => {
           console.log('PanResponder onStartShouldSetPanResponder, currentView:', currentView);
-          return currentView === 'main'; // 메인 화면일 때만 PanResponder 활성화
+          const shouldSet = currentView === 'main';
+          console.log('PanResponder shouldSet:', shouldSet);
+          return shouldSet; // 메인 화면일 때만 PanResponder 활성화
         },
         onMoveShouldSetPanResponder: (_, gestureState) => {
           // 메인 화면이고 아래쪽으로 드래그할 때만 반응
-          return currentView === 'main' && gestureState.dy > 0 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+          const shouldSet = currentView === 'main' && gestureState.dy > 0 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+          console.log('PanResponder onMoveShouldSetPanResponder, shouldSet:', shouldSet);
+          return shouldSet;
         },
         onPanResponderMove: (_, gestureState) => {
           // 아래쪽으로만 드래그 허용
@@ -121,7 +118,7 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
   );
 
   // 반복 설정 관련 함수들
-  const getRepeatDisplayValue = (days: string[]) => {
+  const getRepeatDisplayValue = (days: DayOfWeek[]) => {
     if (days.length === 0) return '없음';
     if (days.length === 7) return '매일';
     if (days.length === 5 && 
@@ -147,7 +144,7 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
     }).start();
   };
 
-  const handleRepeatSave = (newSelectedDays: string[]) => {
+  const handleRepeatSave = (newSelectedDays: DayOfWeek[]) => {
     console.log('Repeat save called with:', newSelectedDays);
     setSelectedDays(newSelectedDays);
     setRepeatValue(getRepeatDisplayValue(newSelectedDays));
@@ -218,6 +215,7 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
     // 알람 데이터를 JSON 객체로 수집
     const alarmData: AlarmData = {
       selectedTime,
+      selectedDays,
       repeatValue,
       labelValue,
       soundValue,
@@ -257,7 +255,6 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
               transform: [{ translateY }],
             },
           ]}
-          {...panResponder.panHandlers}
         >
           {/* 드래그 핸들 */}
           <ThemedView style={[styles.dragHandle, { backgroundColor: tintColor, opacity: 0.3 }]} />
@@ -271,7 +268,10 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
               ]}
             >
               {/* 메인 화면 */}
-              <ThemedView style={styles.screenContainer}>
+              <ThemedView 
+                style={styles.screenContainer}
+                {...(currentView === 'main' ? panResponder.panHandlers : {})}
+              >
                 {/* 헤더 */}
                 <ThemedView style={styles.header}>
                   <ThemedView style={styles.titleContainer}>

@@ -1,5 +1,6 @@
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { DAYS_OF_WEEK, DayOfWeek, PresetKey, REPEAT_PRESETS } from '@/types/alarm';
 import React, { useState } from 'react';
 import {
   ScrollView,
@@ -9,17 +10,7 @@ import {
 import { ThemedText } from '../common/ThemedText';
 import { ThemedView } from '../common/ThemedView';
 
-const DAYS_OF_WEEK = [
-  { key: 'sunday', label: '일요일마다' },
-  { key: 'monday', label: '월요일마다' },
-  { key: 'tuesday', label: '화요일마다' },
-  { key: 'wednesday', label: '수요일마다' },
-  { key: 'thursday', label: '목요일마다' },
-  { key: 'friday', label: '금요일마다' },
-  { key: 'saturday', label: '토요일마다' },
-];
-
-const PRESET_OPTIONS = [
+const PRESET_OPTIONS: Array<{ key: PresetKey; label: string }> = [
   { key: 'never', label: '없음' },
   { key: 'everyday', label: '매일' },
   { key: 'weekdays', label: '주중 (월~금)' },
@@ -27,21 +18,21 @@ const PRESET_OPTIONS = [
 ];
 
 interface RepeatSettingsContentProps {
-  selectedDays: string[];
-  onSave: (selectedDays: string[]) => void;
+  selectedDays: DayOfWeek[];
+  onSave: (selectedDays: DayOfWeek[]) => void;
   onCancel: () => void;
 }
 
 export default function RepeatSettingsContent({ selectedDays, onSave, onCancel }: RepeatSettingsContentProps) {
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
-  const [tempSelectedDays, setTempSelectedDays] = useState<string[]>(selectedDays);
+  const [tempSelectedDays, setTempSelectedDays] = useState<DayOfWeek[]>(selectedDays);
 
   React.useEffect(() => {
     setTempSelectedDays(selectedDays);
   }, [selectedDays]);
 
-  const toggleDay = (dayKey: string) => {
+  const toggleDay = (dayKey: DayOfWeek) => {
     setTempSelectedDays(prev => {
       if (prev.includes(dayKey)) {
         return prev.filter(day => day !== dayKey);
@@ -51,20 +42,10 @@ export default function RepeatSettingsContent({ selectedDays, onSave, onCancel }
     });
   };
 
-  const selectPreset = (presetKey: string) => {
-    switch (presetKey) {
-      case 'never':
-        setTempSelectedDays([]);
-        break;
-      case 'everyday':
-        setTempSelectedDays(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']);
-        break;
-      case 'weekdays':
-        setTempSelectedDays(['monday', 'tuesday', 'wednesday', 'thursday', 'friday']);
-        break;
-      case 'weekends':
-        setTempSelectedDays(['saturday', 'sunday']);
-        break;
+  const selectPreset = (presetKey: PresetKey) => {
+    const preset = REPEAT_PRESETS[presetKey];
+    if (preset) {
+      setTempSelectedDays([...preset.days]);
     }
   };
 
@@ -96,12 +77,15 @@ export default function RepeatSettingsContent({ selectedDays, onSave, onCancel }
       <ThemedView style={styles.header}>
         <TouchableOpacity 
           onPress={() => {
-            console.log('🔥 CANCEL BUTTON PRESSED!');
             handleCancel();
-          }} 
+          }}
+          onPressIn={() => {
+          }}
+          onPressOut={() => {
+          }}
           style={[styles.cancelButton]}
-          activeOpacity={0.3}
-          hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+          activeOpacity={0.6}
+          hitSlop={{ top: 30, bottom: 30, left: 30, right: 30 }}
         >
           <ThemedText style={[styles.headerButtonText]}>취소</ThemedText>
         </TouchableOpacity>
@@ -171,19 +155,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    minHeight: 64, // 헤더 최소 높이 설정
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
   cancelButton: {
-    minWidth: 100,
-    backgroundColor: 'red',
-    paddingHorizontal: 25,
-    paddingVertical: 20,
-    borderRadius: 10,
+    minWidth: 80,
+    minHeight: 44, // iOS 권장 최소 터치 영역
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    // 디버깅을 위한 배경색 제거
+    // backgroundColor: 'transparent',
   },
   emptySpace: {
     minWidth: 80,
@@ -193,10 +179,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     textAlign: 'center',
+    pointerEvents: 'none', // 터치 이벤트가 뒤의 요소로 전달되도록 함
   },
   headerButtonText: {
-    fontSize: 17,
-    fontWeight: '400',
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#007AFF', // iOS 표준 링크 색상
   },
   content: {
     flex: 1,
