@@ -30,3 +30,20 @@ export const REPEAT_PRESETS: Record<PresetKey, { label: string; days: DayOfWeek[
   weekdays: { label: '평일', days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] },
   weekends: { label: '주말', days: ['saturday', 'sunday'] },
 };
+
+// 유틸리티 함수: 선택된 요일들을 표시용 텍스트로 변환
+export const getRepeatDisplayText = (days: DayOfWeek[]): string => {
+  if (days.length === 0) return '없음';
+  if (days.length === 7) return '매일';
+  if (days.length === 5 && 
+      days.includes('monday') && days.includes('tuesday') && 
+      days.includes('wednesday') && days.includes('thursday') && 
+      days.includes('friday')) {
+    return '주중 (월~금)';
+  }
+  if (days.length === 2 && 
+      days.includes('saturday') && days.includes('sunday')) {
+    return '주말 (토~일)';
+  }
+  return `${days.length}일 선택됨`;
+};

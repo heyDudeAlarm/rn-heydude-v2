@@ -1,6 +1,6 @@
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { DAYS_OF_WEEK, DayOfWeek, PresetKey, REPEAT_PRESETS } from '@/types/alarm';
+import { DAYS_OF_WEEK, DayOfWeek, PresetKey, REPEAT_PRESETS, getRepeatDisplayText } from '@/types/alarm';
 import React, { useState } from 'react';
 import {
   ScrollView,
@@ -55,22 +55,6 @@ export default function RepeatSettingsContent({ selectedDays, onSave, onCancel }
     onCancel();
   };
 
-  const getRepeatDescription = () => {
-    if (tempSelectedDays.length === 0) return '없음';
-    if (tempSelectedDays.length === 7) return '매일';
-    if (tempSelectedDays.length === 5 && 
-        tempSelectedDays.includes('monday') && tempSelectedDays.includes('tuesday') && 
-        tempSelectedDays.includes('wednesday') && tempSelectedDays.includes('thursday') && 
-        tempSelectedDays.includes('friday')) {
-      return '주중 (월~금)';
-    }
-    if (tempSelectedDays.length === 2 && 
-        tempSelectedDays.includes('saturday') && tempSelectedDays.includes('sunday')) {
-      return '주말 (토~일)';
-    }
-    return `${tempSelectedDays.length}일 선택됨`;
-  };
-
   return (
     <ThemedView style={[styles.container, { backgroundColor }]}>
       {/* 헤더 */}
@@ -106,7 +90,7 @@ export default function RepeatSettingsContent({ selectedDays, onSave, onCancel }
               onPress={() => selectPreset(preset.key)}
             >
               <ThemedText style={styles.optionLabel}>{preset.label}</ThemedText>
-              {getRepeatDescription() === preset.label && (
+              {getRepeatDisplayText(tempSelectedDays) === preset.label && (
                 <IconSymbol 
                   size={20} 
                   name="checkmark" 
@@ -140,7 +124,7 @@ export default function RepeatSettingsContent({ selectedDays, onSave, onCancel }
 
         {/* 선택된 요일 미리보기 */}
         <ThemedView style={styles.previewSection}>
-          <ThemedText style={styles.previewTitle}>선택됨: {getRepeatDescription()}</ThemedText>
+          <ThemedText style={styles.previewTitle}>선택됨: {getRepeatDisplayText(tempSelectedDays)}</ThemedText>
         </ThemedView>
       </ScrollView>
     </ThemedView>
