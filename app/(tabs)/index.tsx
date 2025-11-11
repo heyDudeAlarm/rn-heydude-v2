@@ -1,14 +1,53 @@
-import React, { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
-import AddAlarmModal, { AlarmData } from '@/components/alarm/AddAlarmModal';
+import AddAlarmModal from '@/components/alarm/AddAlarmModal';
 import AlarmHeader from '@/components/alarm/AlarmHeader';
 import AlarmList, { AlarmItem } from '@/components/alarm/AlarmList';
 import ParallaxScrollView from '@/components/layout/ParallaxScrollView';
+import { AlarmData } from '@/types/alarm';
+
+// AsyncStorage에 저장할 키
+const ALARMS_STORAGE_KEY = '@heydude_alarms';
 
 export default function HomeScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [alarms, setAlarms] = useState<AlarmItem[]>([]);
+
+  // 로컬 스토리지에서 알람 데이터 로드
+  const loadAlarms = async () => {
+    try {
+      const storedAlarms = await AsyncStorage.getItem(ALARMS_STORAGE_KEY);
+      if (storedAlarms) {
+        const parsedAlarms: AlarmItem[] = JSON.parse(storedAlarms);
+        // Date 객체를 다시 생성 (JSON.parse는 Date를 문자열로 파싱)
+        const alarmsWithDates = parsedAlarms.map(alarm => ({
+          ...alarm,
+          selectedTime: new Date(alarm.selectedTime),
+        }));
+        setAlarms(alarmsWithDates);
+      }
+    } catch (error) {
+      console.error('❌ 알람 로드 실패:', error);
+      // 에러 발생 시 빈 배열로 초기화
+      setAlarms([]);
+    }
+  };
+
+  // 로컬 스토리지에 알람 데이터 저장
+  const saveAlarms = async (alarmsToSave: AlarmItem[]) => {
+    try {
+      await AsyncStorage.setItem(ALARMS_STORAGE_KEY, JSON.stringify(alarmsToSave));
+    } catch (error) {
+      console.error('❌ 알람 저장 실패:', error);
+    }
+  };
+
+  // 컴포넌트 마운트 시 저장된 알람들 로드
+  useEffect(() => {
+    loadAlarms();
+  }, []);
 
   const handleAddAlarm = () => {
     setIsModalVisible(true);
@@ -18,14 +57,7 @@ export default function HomeScreen() {
     setIsModalVisible(false);
   };
 
-  const handleSaveAlarm = (alarmData: AlarmData) => {
-    console.log('📱 메인페이지에서 받은 알람 데이터:', JSON.stringify(alarmData, null, 2));
-    console.log('⏰ 설정된 시간:', alarmData.selectedTime.toLocaleTimeString());
-    console.log('🔁 반복 설정:', alarmData.repeatValue);
-    console.log('🏷️ 알람 라벨:', alarmData.labelValue);
-    console.log('🔊 알람 사운드:', alarmData.soundValue);
-    console.log('😴 스누즈 설정:', alarmData.snoozeValue);
-    
+  const handleSaveAlarm = async (alarmData: AlarmData) => {
     // 새로운 알람 아이템 생성
     const newAlarm: AlarmItem = {
       id: Date.now().toString(), // 간단한 ID 생성 (실제로는 uuid 사용 권장)
@@ -34,32 +66,40 @@ export default function HomeScreen() {
     };
 
     // 알람 리스트에 추가
-    setAlarms(prevAlarms => [...prevAlarms, newAlarm]);
-    console.log('✅ 새로운 알람이 추가되었습니다:', newAlarm);
+    const updatedAlarms = [...alarms, newAlarm];
+    setAlarms(updatedAlarms);
+    
+    // 로컬 스토리지에 저장
+    await saveAlarms(updatedAlarms);
     
     setIsModalVisible(false);
   };
 
   // 알람 활성화/비활성화 토글
-  const handleToggleAlarm = (id: string, enabled: boolean) => {
-    setAlarms(prevAlarms =>
-      prevAlarms.map(alarm =>
-        alarm.id === id ? { ...alarm, isEnabled: enabled } : alarm
-      )
+  const handleToggleAlarm = async (id: string, enabled: boolean) => {
+    const updatedAlarms = alarms.map(alarm =>
+      alarm.id === id ? { ...alarm, isEnabled: enabled } : alarm
     );
-    console.log(`🔄 알람 ${id} ${enabled ? '활성화' : '비활성화'}`);
+    setAlarms(updatedAlarms);
+    
+    // 로컬 스토리지에 저장
+    await saveAlarms(updatedAlarms);
   };
 
   // 알람 편집 (향후 구현)
   const handleEditAlarm = (id: string) => {
-    console.log('✏️ 알람 편집:', id);
     // TODO: 편집 모달 열기
+    setIsModalVisible(true);
+    handleDeleteAlarm(id);
   };
 
   // 알람 삭제
-  const handleDeleteAlarm = (id: string) => {
-    setAlarms(prevAlarms => prevAlarms.filter(alarm => alarm.id !== id));
-    console.log('🗑️ 알람 삭제:', id);
+  const handleDeleteAlarm = async (id: string) => {
+    const updatedAlarms = alarms.filter(alarm => alarm.id !== id);
+    setAlarms(updatedAlarms);
+    
+    // 로컬 스토리지에 저장
+    await saveAlarms(updatedAlarms);
   };
 
   return (

@@ -75,16 +75,11 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => {
-          console.log('PanResponder onStartShouldSetPanResponder, currentView:', currentView);
-          const shouldSet = currentView === 'main';
-          console.log('PanResponder shouldSet:', shouldSet);
-          return shouldSet; // 메인 화면일 때만 PanResponder 활성화
+          return currentView === 'main'; // 메인 화면일 때만 PanResponder 활성화
         },
         onMoveShouldSetPanResponder: (_, gestureState) => {
           // 메인 화면이고 아래쪽으로 드래그할 때만 반응
-          const shouldSet = currentView === 'main' && gestureState.dy > 0 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
-          console.log('PanResponder onMoveShouldSetPanResponder, shouldSet:', shouldSet);
-          return shouldSet;
+          return currentView === 'main' && gestureState.dy > 0 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
         },
         onPanResponderMove: (_, gestureState) => {
           // 아래쪽으로만 드래그 허용
@@ -120,7 +115,6 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
   // 반복 설정 관련 함수들
 
   const handleRepeatPress = () => {
-    console.log('Repeat button pressed, showing repeat settings');
     setCurrentView('repeat');
     Animated.timing(slideAnim, {
       toValue: -SCREEN_WIDTH, // 왼쪽으로 슬라이드
@@ -130,7 +124,6 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
   };
 
   const handleRepeatSave = (newSelectedDays: DayOfWeek[]) => {
-    console.log('Repeat save called with:', newSelectedDays);
     setSelectedDays(newSelectedDays);
     setRepeatValue(getRepeatDisplayText(newSelectedDays));
     goBackToMain();
@@ -147,12 +140,10 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
   };
 
   const handleLabelChange = (text: string) => {
-    console.log('Label changed to:', text);
     setLabelValue(text);
   };
 
   const handleSoundPress = () => {
-    console.log('Sound button pressed, showing sound settings');
     setCurrentView('sound');
     Animated.timing(slideAnim, {
       toValue: -SCREEN_WIDTH * 2, // 사운드 화면으로 슬라이드 (세 번째 화면)
@@ -192,7 +183,6 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
   };
 
   const handleSnoozeToggle = (toggled: boolean) => {
-    console.log('Snooze toggle changed to:', toggled);
     setSnoozeEnabled(toggled);
   };
 
@@ -206,8 +196,6 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
       soundValue,
       snoozeValue: snoozeEnabled ? '켜짐' : '꺼짐'
     };
-    
-    console.log('Complete button pressed, alarm data:', alarmData);
     
     // 메인페이지로 데이터 전달
     onSave(alarmData);

@@ -1,8 +1,8 @@
+import { AlarmData } from '@/types/alarm';
 import React from 'react';
 import { FlatList, StyleSheet } from 'react-native';
 import { ThemedText } from '../common/ThemedText';
 import { ThemedView } from '../common/ThemedView';
-import { AlarmData } from './AddAlarmModal';
 import AlarmListItem from './AlarmListItem';
 
 export interface AlarmItem extends AlarmData {
