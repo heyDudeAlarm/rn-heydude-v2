@@ -1,6 +1,6 @@
 import { AlarmData } from '@/types/alarm';
 import React from 'react';
-import { FlatList, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { ThemedText } from '../common/ThemedText';
 import { ThemedView } from '../common/ThemedView';
 import AlarmListItem from './AlarmListItem';
@@ -29,20 +29,17 @@ export default function AlarmList({ alarms, onToggleAlarm, onEditAlarm, onDelete
 
   return (
     <ThemedView style={styles.container}>
-      <FlatList
-        data={alarms}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
+      <ThemedView style={styles.listContent}>
+        {alarms.map((item) => (
           <AlarmListItem
+            key={item.id}
             alarm={item}
             onToggle={onToggleAlarm}
             onEdit={onEditAlarm}
             onDelete={onDeleteAlarm}
           />
-        )}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-      />
+        ))}
+      </ThemedView>
     </ThemedView>
   );
 }
