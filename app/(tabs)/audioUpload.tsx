@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { pickAndUploadAudio } from "../../utils/audioUpload";
 import { deleteFile, getSignedUrl, listFiles } from "../../utils/storage";
+import { downloadWithConfirmation } from "../../utils/audioDownload";
 
 interface StorageFile {
   name: string;
@@ -219,6 +220,12 @@ export default function App() {
     ]);
   };
 
+  // 파일 다운로드
+  const handleDownload = async (item: StorageFile) => {
+    const displayName = getDisplayName(item.name);
+    await downloadWithConfirmation("audios", `uploads/${item.name}`, displayName);
+  };
+
   // 파일 크기 포맷
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -296,6 +303,13 @@ export default function App() {
               <Text style={styles.actionButtonText}>⏹</Text>
             </TouchableOpacity>
           )}
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.downloadButton]}
+            onPress={() => handleDownload(item)}
+          >
+            <Text style={styles.actionButtonText}>⬇️</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.actionButton, styles.deleteButton]}
@@ -501,6 +515,9 @@ const styles = StyleSheet.create({
   },
   stopButton: {
     backgroundColor: "#FF9500",
+  },
+  downloadButton: {
+    backgroundColor: "#34C759",
   },
   deleteButton: {
     backgroundColor: "#FF3B30",
