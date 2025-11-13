@@ -4,9 +4,11 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -31,6 +33,8 @@ export default function AudioRecordScreen() {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showFileNameModal, setShowFileNameModal] = useState(false);
+  const [customFileName, setCustomFileName] = useState("");
 
   // 녹음 시간 타이머
   useEffect(() => {
@@ -178,14 +182,21 @@ export default function AudioRecordScreen() {
     }
   };
 
+  // 파일명 입력 모달 표시
+  const handleShowFileNameModal = () => {
+    setCustomFileName("");
+    setShowFileNameModal(true);
+  };
+
   // 음성 메시지 전송 (Supabase 업로드)
-  const handleSendVoiceMessage = async () => {
+  const handleConfirmUpload = async () => {
     try {
       if (!recordingUri) {
         Alert.alert("오류", "녹음 파일이 없습니다.");
         return;
       }
 
+      setShowFileNameModal(false);
       setUploading(true);
 
       // 파일 읽기
@@ -201,9 +212,24 @@ export default function AudioRecordScreen() {
       }
       const byteArray = new Uint8Array(byteNumbers);
 
-      // 파일명 생성
-      const timestamp = new Date().getTime();
-      const fileName = `recording_${timestamp}.m4a`;
+      // 파일명 생성 (한글 지원)
+      const encodeBase64UrlSafe = (str: string): string => {
+        return btoa(unescape(encodeURIComponent(str)))
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=/g, "");
+      };
+
+      let fileName: string;
+      if (customFileName && customFileName.trim() !== "") {
+        const displayName = customFileName.trim();
+        const encodedName = encodeBase64UrlSafe(displayName);
+        const timestamp = Date.now();
+        fileName = `${encodedName}--${timestamp}.m4a`;
+      } else {
+        const timestamp = Date.now();
+        fileName = `recording_${timestamp}.m4a`;
+      }
 
       // Supabase에 업로드
       const result = await uploadFile({
@@ -319,7 +345,7 @@ export default function AudioRecordScreen() {
             <View style={styles.actionButtons}>
               <TouchableOpacity
                 style={[styles.sendButton, uploading && styles.buttonDisabled]}
-                onPress={handleSendVoiceMessage}
+                onPress={handleShowFileNameModal}
                 disabled={uploading}
               >
                 {uploading ? (
@@ -341,6 +367,51 @@ export default function AudioRecordScreen() {
                 <Text style={styles.reRecordButtonText}>재녹음</Text>
               </TouchableOpacity>
             </View>
+
+            {/* 파일명 입력 모달 */}
+            <Modal
+              visible={showFileNameModal}
+              transparent={true}
+              animationType="fade"
+              onRequestClose={() => setShowFileNameModal(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <Text style={styles.modalTitle}>파일명 설정</Text>
+                  <Text style={styles.modalDescription}>
+                    업로드할 파일명을 입력하세요 (확장자 제외)
+                  </Text>
+                  <Text style={styles.modalHint}>
+                    입력하지 않으면 자동으로 생성됩니다
+                  </Text>
+
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="예: 내 음성 메시지"
+                    placeholderTextColor="#999"
+                    value={customFileName}
+                    onChangeText={setCustomFileName}
+                    autoFocus={true}
+                  />
+
+                  <View style={styles.modalButtons}>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.modalButtonCancel]}
+                      onPress={() => setShowFileNameModal(false)}
+                    >
+                      <Text style={styles.modalButtonTextCancel}>취소</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.modalButtonConfirm]}
+                      onPress={handleConfirmUpload}
+                    >
+                      <Text style={styles.modalButtonTextConfirm}>업로드</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </Modal>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -714,5 +785,76 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "#1e293b",
+    borderRadius: 16,
+    padding: 24,
+    width: "85%",
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: "rgba(71, 85, 105, 0.5)",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "300",
+    color: "#fff",
+    marginBottom: 8,
+  },
+  modalDescription: {
+    fontSize: 14,
+    color: "#94a3b8",
+    marginBottom: 4,
+  },
+  modalHint: {
+    fontSize: 12,
+    color: "#64748b",
+    marginBottom: 16,
+    fontStyle: "italic",
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: "rgba(71, 85, 105, 0.5)",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    marginBottom: 20,
+    backgroundColor: "rgba(30, 41, 59, 0.6)",
+    color: "#fff",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  modalButtonCancel: {
+    backgroundColor: "rgba(71, 85, 105, 0.5)",
+    borderWidth: 1,
+    borderColor: "rgba(100, 116, 139, 0.3)",
+  },
+  modalButtonConfirm: {
+    backgroundColor: "rgba(59, 130, 246, 0.9)",
+  },
+  modalButtonTextCancel: {
+    color: "#cbd5e1",
+    fontSize: 16,
+    fontWeight: "300",
+  },
+  modalButtonTextConfirm: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "300",
   },
 });

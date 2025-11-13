@@ -81,7 +81,6 @@ export async function pickAndUploadAudio(
     if (customFileName && customFileName.trim() !== "") {
       displayName = customFileName.trim();
       // 파일명 형식: [Base64인코딩된한글명]--[타임스탬프].확장자
-      // '--'를 구분자로 사용 (URL-safe Base64의 '_'와 구분)
       const encodedName = encodeBase64UrlSafe(displayName);
       const timestamp = Date.now();
       fileName = `${encodedName}--${timestamp}.${fileExtension}`;
