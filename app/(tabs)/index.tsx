@@ -14,6 +14,8 @@ const ALARMS_STORAGE_KEY = '@heydude_alarms';
 export default function HomeScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [alarms, setAlarms] = useState<AlarmItem[]>([]);
+  const [editingAlarmId, setEditingAlarmId] = useState<string | undefined>();
+  const [editingAlarmData, setEditingAlarmData] = useState<AlarmData | undefined>();
 
   // 로컬 스토리지에서 알람 데이터 로드
   const loadAlarms = async () => {
@@ -50,23 +52,38 @@ export default function HomeScreen() {
   }, []);
 
   const handleAddAlarm = () => {
+    // 신규 알람 추가
+    setEditingAlarmId(undefined);
+    setEditingAlarmData(undefined);
     setIsModalVisible(true);
   };
 
   const handleCloseModal = () => {
     setIsModalVisible(false);
+    setEditingAlarmId(undefined);
+    setEditingAlarmData(undefined);
   };
 
   const handleSaveAlarm = async (alarmData: AlarmData) => {
-    // 새로운 알람 아이템 생성
-    const newAlarm: AlarmItem = {
-      id: Date.now().toString(), // 간단한 ID 생성 (실제로는 uuid 사용 권장)
-      ...alarmData,
-      isEnabled: true, // 기본적으로 활성화 상태
-    };
+    let updatedAlarms: AlarmItem[];
 
-    // 알람 리스트에 추가
-    const updatedAlarms = [...alarms, newAlarm];
+    if (editingAlarmId) {
+      // 편집 모드: 기존 알람 업데이트
+      updatedAlarms = alarms.map(alarm =>
+        alarm.id === editingAlarmId
+          ? { ...alarm, ...alarmData }
+          : alarm
+      );
+    } else {
+      // 신규 모드: 새 알람 추가
+      const newAlarm: AlarmItem = {
+        id: Date.now().toString(), // 간단한 ID 생성 (실제로는 uuid 사용 권장)
+        ...alarmData,
+        isEnabled: true, // 기본적으로 활성화 상태
+      };
+      updatedAlarms = [...alarms, newAlarm];
+    }
+
     setAlarms(updatedAlarms);
     
     // 로컬 스토리지에 저장
@@ -86,11 +103,21 @@ export default function HomeScreen() {
     await saveAlarms(updatedAlarms);
   };
 
-  // 알람 편집 (향후 구현)
+  // 알람 편집
   const handleEditAlarm = (id: string) => {
-    // TODO: 편집 모달 열기
-    setIsModalVisible(true);
-    handleDeleteAlarm(id);
+    const alarmToEdit = alarms.find(alarm => alarm.id === id);
+    if (alarmToEdit) {
+      setEditingAlarmId(id);
+      setEditingAlarmData({
+        selectedTime: alarmToEdit.selectedTime,
+        selectedDays: alarmToEdit.selectedDays,
+        repeatValue: alarmToEdit.repeatValue,
+        labelValue: alarmToEdit.labelValue,
+        soundValue: alarmToEdit.soundValue,
+        snoozeValue: alarmToEdit.snoozeValue,
+      });
+      setIsModalVisible(true);
+    }
   };
 
   // 알람 삭제
@@ -118,6 +145,8 @@ export default function HomeScreen() {
         visible={isModalVisible} 
         onClose={handleCloseModal}
         onSave={handleSaveAlarm}
+        editAlarmId={editingAlarmId}
+        editAlarmData={editingAlarmData}
       />
     </>
   );

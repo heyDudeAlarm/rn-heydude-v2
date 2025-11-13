@@ -24,20 +24,25 @@ interface AddAlarmModalProps {
   visible: boolean;
   onClose: () => void;
   onSave: (alarmData: AlarmData) => void;
+  editAlarmId?: string; // 편집할 알람의 ID (없으면 새 알람)
+  editAlarmData?: AlarmData; // 편집할 알람의 데이터
 }
 
-export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModalProps) {
+export default function AddAlarmModal({ visible, onClose, onSave, editAlarmId, editAlarmData }: AddAlarmModalProps) {
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
   const insets = useSafeAreaInsets();
   
+  // 편집 모드인지 확인
+  const isEditMode = !!(editAlarmId && editAlarmData);
+  
   // 알람 설정 상태
-  const [selectedTime, setSelectedTime] = useState(new Date());
-  const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([]);
-  const [repeatValue, setRepeatValue] = useState('없음');
-  const [labelValue, setLabelValue] = useState('알람');
-  const [soundValue, setSoundValue] = useState('레이더');
-  const [snoozeEnabled, setSnoozeEnabled] = useState(false);
+  const [selectedTime, setSelectedTime] = useState(editAlarmData?.selectedTime || new Date());
+  const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>(editAlarmData?.selectedDays || []);
+  const [repeatValue, setRepeatValue] = useState(editAlarmData?.repeatValue || '없음');
+  const [labelValue, setLabelValue] = useState(editAlarmData?.labelValue || '알람');
+  const [soundValue, setSoundValue] = useState(editAlarmData?.soundValue || '레이더');
+  const [snoozeEnabled, setSnoozeEnabled] = useState(editAlarmData?.snoozeValue === '켜짐');
   
   // 화면 전환 상태
   const [currentView, setCurrentView] = useState<'main' | 'repeat' | 'sound'>('main');
@@ -69,6 +74,32 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
       });
     }
   }, [visible, translateY]);
+
+  // 모달이 열릴 때 데이터 초기화
+  React.useEffect(() => {
+    if (visible) {
+      if (isEditMode && editAlarmData) {
+        // 편집 모드: 기존 데이터로 초기화
+        setSelectedTime(editAlarmData.selectedTime);
+        setSelectedDays(editAlarmData.selectedDays);
+        setRepeatValue(editAlarmData.repeatValue);
+        setLabelValue(editAlarmData.labelValue);
+        setSoundValue(editAlarmData.soundValue);
+        setSnoozeEnabled(editAlarmData.snoozeValue === '켜짐');
+      } else {
+        // 신규 모드: 기본값으로 초기화
+        setSelectedTime(new Date());
+        setSelectedDays([]);
+        setRepeatValue('없음');
+        setLabelValue('알람');
+        setSoundValue('레이더');
+        setSnoozeEnabled(false);
+      }
+      // 화면을 메인으로 리셋
+      setCurrentView('main');
+      slideAnim.setValue(0);
+    }
+  }, [visible, isEditMode, editAlarmData, slideAnim]);
 
   // 드래그 제스처 처리
   const panResponder = React.useMemo(
@@ -254,7 +285,7 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
                       allowFontScaling={false}
                       numberOfLines={1}
                     >
-                      알람 추가
+                      {isEditMode ? '알람 편집' : '알람 추가'}
                     </ThemedText>
                   </ThemedView>
                   <TouchableOpacity onPress={handleComplete} style={styles.closeButton}>
