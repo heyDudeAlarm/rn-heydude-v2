@@ -4,9 +4,11 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -29,6 +31,8 @@ export default function App() {
   const [storageFiles, setStorageFiles] = useState<StorageFile[]>([]);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [playingFile, setPlayingFile] = useState<string | null>(null);
+  const [showFileNameModal, setShowFileNameModal] = useState(false);
+  const [customFileName, setCustomFileName] = useState("");
 
   // 스토리지 파일 목록 가져오기
   const loadStorageFiles = async () => {
@@ -72,13 +76,23 @@ export default function App() {
     };
   }, []);
 
-  const handleAudioUpload = async () => {
+  const handleAudioUpload = () => {
+    // 파일명 입력 모달 표시
+    setCustomFileName("");
+    setShowFileNameModal(true);
+  };
+
+  const handleConfirmUpload = async () => {
     try {
+      setShowFileNameModal(false);
       setUploading(true);
 
       // 'audios'는 Supabase Storage의 버킷 이름입니다
-      // 실제 버킷 이름으로 변경해주세요
-      const result = await pickAndUploadAudio("audios", "uploads");
+      const result = await pickAndUploadAudio(
+        "audios",
+        "uploads",
+        customFileName.trim()
+      );
 
       if (result.error) {
         Alert.alert("업로드 실패", result.error.message);
@@ -272,6 +286,55 @@ export default function App() {
         )}
       </TouchableOpacity>
 
+      {/* 파일명 입력 모달 */}
+      <Modal
+        visible={showFileNameModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowFileNameModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>파일명 설정</Text>
+            <Text style={styles.modalDescription}>
+              업로드할 파일명을 입력하세요 (확장자 제외)
+            </Text>
+            <Text style={styles.modalHint}>
+              영문, 숫자, 하이픈(-), 언더스코어(_)만 사용 가능
+            </Text>
+            <Text style={styles.modalHint}>
+              입력하지 않으면 자동으로 생성됩니다
+            </Text>
+
+            <TextInput
+              style={styles.modalInput}
+              placeholder="예: my_audio_file"
+              placeholderTextColor="#999"
+              value={customFileName}
+              onChangeText={setCustomFileName}
+              autoFocus={true}
+              autoCapitalize="none"
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setShowFileNameModal(false)}
+              >
+                <Text style={styles.modalButtonTextCancel}>취소</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={handleConfirmUpload}
+              >
+                <Text style={styles.modalButtonTextConfirm}>업로드</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* 스토리지 파일 목록 */}
       <View style={styles.listContainer}>
         <Text style={styles.sectionTitle}>
@@ -408,5 +471,71 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 16,
     color: "#fff",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 24,
+    width: "85%",
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 8,
+  },
+  modalDescription: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 4,
+  },
+  modalHint: {
+    fontSize: 12,
+    color: "#999",
+    marginBottom: 16,
+    fontStyle: "italic",
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    marginBottom: 20,
+    backgroundColor: "#f9f9f9",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  modalButtonCancel: {
+    backgroundColor: "#f0f0f0",
+  },
+  modalButtonConfirm: {
+    backgroundColor: "#007AFF",
+  },
+  modalButtonTextCancel: {
+    color: "#666",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalButtonTextConfirm: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

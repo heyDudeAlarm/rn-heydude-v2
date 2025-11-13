@@ -34,7 +34,8 @@ function formatFileSize(bytes: number): string {
  */
 export async function pickAndUploadAudio(
   bucket: string,
-  folder: string = ""
+  folder: string = "",
+  customFileName?: string
 ): Promise<AudioUploadResult> {
   try {
     // 오디오 파일 선택
@@ -63,9 +64,32 @@ export async function pickAndUploadAudio(
 
     // 파일 확장자 추출
     const fileExtension = file.name.split(".").pop() || "mp3";
-    const fileName = `${Date.now()}-${Math.random()
-      .toString(36)
-      .substring(7)}.${fileExtension}`;
+
+    // 커스텀 파일명이 있으면 사용하고, 없으면 타임스탬프 기반 파일명 사용
+    let fileName: string;
+    if (customFileName && customFileName.trim() !== "") {
+      // Supabase Storage는 영문, 숫자, 하이픈, 언더스코어만 허용
+      // 한글 및 특수문자 제거, 공백을 언더스코어로 변경
+      const sanitizedName = customFileName
+        .trim()
+        .replace(/[^a-zA-Z0-9\s-_]/g, "") // 한글 포함 특수문자 제거
+        .replace(/\s+/g, "_") // 공백을 언더스코어로 변경
+        .toLowerCase(); // 소문자로 변환 (선택사항)
+
+      // sanitize 후 빈 문자열이면 타임스탬프 사용
+      if (sanitizedName === "") {
+        fileName = `${Date.now()}-${Math.random()
+          .toString(36)
+          .substring(7)}.${fileExtension}`;
+      } else {
+        fileName = `${sanitizedName}.${fileExtension}`;
+      }
+    } else {
+      fileName = `${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(7)}.${fileExtension}`;
+    }
+
     const filePath = folder ? `${folder}/${fileName}` : fileName;
 
     // MIME 타입 결정
@@ -85,7 +109,7 @@ export async function pickAndUploadAudio(
 
     return {
       ...uploadResult,
-      fileName: file.name,
+      fileName,
       fileSize: file.size,
     };
   } catch (error) {
