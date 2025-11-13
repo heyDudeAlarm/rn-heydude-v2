@@ -189,8 +189,10 @@ export default function App() {
   };
 
   // 파일 삭제
-  const handleDelete = async (fileName: string) => {
-    Alert.alert("파일 삭제", `"${fileName}"을(를) 삭제하시겠습니까?`, [
+  const handleDelete = async (item: StorageFile) => {
+    const displayName = getDisplayName(item.name);
+
+    Alert.alert("파일 삭제", `"${displayName}"을(를) 삭제하시겠습니까?`, [
       { text: "취소", style: "cancel" },
       {
         text: "삭제",
@@ -198,7 +200,7 @@ export default function App() {
         onPress: async () => {
           try {
             const { error } = await deleteFile("audios", [
-              `uploads/${fileName}`,
+              `uploads/${item.name}`,
             ]);
 
             if (error) {
@@ -224,15 +226,54 @@ export default function App() {
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
+  // 파일명에서 displayName 추출 함수
+  const getDisplayName = (fileName: string): string => {
+    try {
+      // 파일명 형식: [Base64인코딩된한글명]--[타임스탬프].확장자
+      const nameWithoutExt = fileName.substring(0, fileName.lastIndexOf("."));
+
+      // '--'로 구분하여 Base64 부분과 타임스탬프 부분 분리
+      const separatorIndex = nameWithoutExt.lastIndexOf("--");
+
+      if (separatorIndex !== -1) {
+        // '--' 구분자가 있으면 커스텀 파일명
+        const encodedName = nameWithoutExt.substring(0, separatorIndex);
+        const timestamp = nameWithoutExt.substring(separatorIndex + 2);
+
+        // 타임스탬프가 숫자인지 확인
+        if (/^\d+$/.test(timestamp)) {
+          // URL-safe Base64를 일반 Base64로 변환
+          const base64 = encodedName.replace(/-/g, "+").replace(/_/g, "/");
+
+          // 패딩 추가
+          const padded =
+            base64 + "==".substring(0, (4 - (base64.length % 4)) % 4);
+
+          // Base64 디코딩
+          return decodeURIComponent(escape(atob(padded)));
+        }
+      }
+
+      // 디코딩 실패 시 또는 자동 생성된 파일명인 경우 원본 반환
+      return fileName;
+    } catch (error) {
+      console.error("파일명 디코딩 에러:", error);
+      return fileName; // 디코딩 실패 시 원본 반환
+    }
+  };
+
   // 파일 아이템 렌더링
   const renderFileItem = ({ item }: { item: StorageFile }) => {
     const isPlaying = playingFile === item.name;
+
+    // 파일명에서 displayName 추출
+    const displayName = getDisplayName(item.name);
 
     return (
       <View style={styles.fileItem}>
         <View style={styles.fileInfo}>
           <Text style={styles.fileName} numberOfLines={1}>
-            {item.name}
+            {displayName}
           </Text>
           <Text style={styles.fileSize}>
             {formatFileSize(item.metadata?.size || 0)}
@@ -258,7 +299,7 @@ export default function App() {
 
           <TouchableOpacity
             style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => handleDelete(item.name)}
+            onPress={() => handleDelete(item)}
           >
             <Text style={styles.actionButtonText}>🗑</Text>
           </TouchableOpacity>
@@ -300,20 +341,16 @@ export default function App() {
               업로드할 파일명을 입력하세요 (확장자 제외)
             </Text>
             <Text style={styles.modalHint}>
-              영문, 숫자, 하이픈(-), 언더스코어(_)만 사용 가능
-            </Text>
-            <Text style={styles.modalHint}>
               입력하지 않으면 자동으로 생성됩니다
             </Text>
 
             <TextInput
               style={styles.modalInput}
-              placeholder="예: my_audio_file"
+              placeholder="예: 내 오디오 파일"
               placeholderTextColor="#999"
               value={customFileName}
               onChangeText={setCustomFileName}
               autoFocus={true}
-              autoCapitalize="none"
             />
 
             <View style={styles.modalButtons}>

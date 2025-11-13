@@ -65,29 +65,32 @@ export async function pickAndUploadAudio(
     // 파일 확장자 추출
     const fileExtension = file.name.split(".").pop() || "mp3";
 
+    // Base64 인코딩 함수 (파일명에 사용 가능한 URL-safe Base64)
+    const encodeBase64UrlSafe = (str: string): string => {
+      // React Native에서 한글 지원을 위해 encodeURIComponent + btoa 사용
+      return btoa(unescape(encodeURIComponent(str)))
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=/g, "");
+    };
+
     // 커스텀 파일명이 있으면 사용하고, 없으면 타임스탬프 기반 파일명 사용
     let fileName: string;
-    if (customFileName && customFileName.trim() !== "") {
-      // Supabase Storage는 영문, 숫자, 하이픈, 언더스코어만 허용
-      // 한글 및 특수문자 제거, 공백을 언더스코어로 변경
-      const sanitizedName = customFileName
-        .trim()
-        .replace(/[^a-zA-Z0-9\s-_]/g, "") // 한글 포함 특수문자 제거
-        .replace(/\s+/g, "_") // 공백을 언더스코어로 변경
-        .toLowerCase(); // 소문자로 변환 (선택사항)
+    let displayName: string; // UI에 표시할 이름 (한글 포함 가능)
 
-      // sanitize 후 빈 문자열이면 타임스탬프 사용
-      if (sanitizedName === "") {
-        fileName = `${Date.now()}-${Math.random()
-          .toString(36)
-          .substring(7)}.${fileExtension}`;
-      } else {
-        fileName = `${sanitizedName}.${fileExtension}`;
-      }
+    if (customFileName && customFileName.trim() !== "") {
+      displayName = customFileName.trim();
+      // 파일명 형식: [Base64인코딩된한글명]--[타임스탬프].확장자
+      // '--'를 구분자로 사용 (URL-safe Base64의 '_'와 구분)
+      const encodedName = encodeBase64UrlSafe(displayName);
+      const timestamp = Date.now();
+      fileName = `${encodedName}--${timestamp}.${fileExtension}`;
     } else {
-      fileName = `${Date.now()}-${Math.random()
-        .toString(36)
-        .substring(7)}.${fileExtension}`;
+      // 자동 생성된 경우
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substring(7);
+      fileName = `${timestamp}-${randomId}.${fileExtension}`;
+      displayName = fileName;
     }
 
     const filePath = folder ? `${folder}/${fileName}` : fileName;
