@@ -12,9 +12,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import {
+  deleteDownloadedAudioFile,
+  downloadWithConfirmation,
+  getDownloadedAudioFiles,
+} from "../../utils/audioDownload";
 import { pickAndUploadAudio } from "../../utils/audioUpload";
 import { deleteFile, getSignedUrl, listFiles } from "../../utils/storage";
-import { downloadWithConfirmation } from "../../utils/audioDownload";
+import * as FileSystemLegacy from "expo-file-system/legacy";
 
 interface StorageFile {
   name: string;
@@ -25,13 +30,21 @@ interface StorageFile {
   metadata: Record<string, any>;
 }
 
+interface LocalFile {
+  uri: string;
+  name: string;
+  size: number;
+}
+
 export default function App() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [storageFiles, setStorageFiles] = useState<StorageFile[]>([]);
+  const [localFiles, setLocalFiles] = useState<LocalFile[]>([]);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [playingFile, setPlayingFile] = useState<string | null>(null);
+  const [playingLocalFile, setPlayingLocalFile] = useState<string | null>(null);
   const [showFileNameModal, setShowFileNameModal] = useState(false);
   const [customFileName, setCustomFileName] = useState("");
 
@@ -59,15 +72,40 @@ export default function App() {
     }
   };
 
+  // 로컬 파일 목록 가져오기
+  const loadLocalFiles = async () => {
+    try {
+      const fileUris = await getDownloadedAudioFiles();
+
+      const filesWithInfo = await Promise.all(
+        fileUris.map(async (uri) => {
+          const fileInfo = await FileSystemLegacy.getInfoAsync(uri);
+          const fileName = uri.substring(uri.lastIndexOf("/") + 1);
+
+          return {
+            uri,
+            name: fileName,
+            size: fileInfo.exists && "size" in fileInfo ? fileInfo.size : 0,
+          };
+        })
+      );
+
+      setLocalFiles(filesWithInfo);
+    } catch (error) {
+      console.error("로컬 파일 목록 로드 실패:", error);
+    }
+  };
+
   // 새로고침
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadStorageFiles();
+    await Promise.all([loadStorageFiles(), loadLocalFiles()]);
   };
 
   // 컴포넌트 마운트 시 파일 목록 로드
   useEffect(() => {
     loadStorageFiles();
+    loadLocalFiles();
 
     // cleanup: 컴포넌트 언마운트 시 오디오 정리
     return () => {
@@ -166,6 +204,7 @@ export default function App() {
 
       setSound(newSound);
       setPlayingFile(fileName);
+      setPlayingLocalFile(null); // 로컬 파일 재생 상태 초기화
 
       // 재생 완료 시 처리
       newSound.setOnPlaybackStatusUpdate((status) => {
@@ -223,7 +262,92 @@ export default function App() {
   // 파일 다운로드
   const handleDownload = async (item: StorageFile) => {
     const displayName = getDisplayName(item.name);
-    await downloadWithConfirmation("audios", `uploads/${item.name}`, displayName);
+    await downloadWithConfirmation(
+      "audios",
+      `uploads/${item.name}`,
+      displayName
+    );
+    // 다운로드 후 로컬 파일 목록 새로고침
+    await loadLocalFiles();
+  };
+
+  // 로컬 파일 재생/일시정지
+  const handlePlayPauseLocal = async (file: LocalFile) => {
+    try {
+      // 같은 파일을 재생 중이면 일시정지/재생 토글
+      if (playingLocalFile === file.uri && sound) {
+        const status = await sound.getStatusAsync();
+        if (status.isLoaded) {
+          if (status.isPlaying) {
+            await sound.pauseAsync();
+          } else {
+            await sound.playAsync();
+          }
+        }
+        return;
+      }
+
+      // 기존 사운드 정리
+      if (sound) {
+        await sound.unloadAsync();
+      }
+
+      // 로컬 파일 재생
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri: file.uri },
+        { shouldPlay: true }
+      );
+
+      setSound(newSound);
+      setPlayingLocalFile(file.uri);
+      setPlayingFile(null); // 스토리지 파일 재생 상태 초기화
+
+      // 재생 완료 시 처리
+      newSound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setPlayingLocalFile(null);
+        }
+      });
+    } catch (error) {
+      console.error("로컬 파일 재생 에러:", error);
+      Alert.alert("오류", "오디오 재생에 실패했습니다.");
+    }
+  };
+
+  // 로컬 파일 정지
+  const handleStopLocal = async () => {
+    if (sound) {
+      await sound.stopAsync();
+      await sound.unloadAsync();
+      setSound(null);
+      setPlayingLocalFile(null);
+    }
+  };
+
+  // 로컬 파일 삭제
+  const handleDeleteLocal = async (file: LocalFile) => {
+    Alert.alert("파일 삭제", `"${file.name}"을(를) 삭제하시겠습니까?`, [
+      { text: "취소", style: "cancel" },
+      {
+        text: "삭제",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const success = await deleteDownloadedAudioFile(file.name);
+
+            if (success) {
+              Alert.alert("성공", "파일이 삭제되었습니다.");
+              await loadLocalFiles();
+            } else {
+              Alert.alert("오류", "파일 삭제에 실패했습니다.");
+            }
+          } catch (error) {
+            console.error("삭제 에러:", error);
+            Alert.alert("오류", "파일 삭제 중 문제가 발생했습니다.");
+          }
+        },
+      },
+    ]);
   };
 
   // 파일 크기 포맷
@@ -322,6 +446,47 @@ export default function App() {
     );
   };
 
+  // 로컬 파일 아이템 렌더링
+  const renderLocalFileItem = ({ item }: { item: LocalFile }) => {
+    const isPlaying = playingLocalFile === item.uri;
+
+    return (
+      <View style={styles.fileItem}>
+        <View style={styles.fileInfo}>
+          <Text style={styles.fileName} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={styles.fileSize}>{formatFileSize(item.size)}</Text>
+        </View>
+
+        <View style={styles.fileActions}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.playButton]}
+            onPress={() => handlePlayPauseLocal(item)}
+          >
+            <Text style={styles.actionButtonText}>{isPlaying ? "⏸" : "▶"}</Text>
+          </TouchableOpacity>
+
+          {isPlaying && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.stopButton]}
+              onPress={handleStopLocal}
+            >
+              <Text style={styles.actionButtonText}>⏹</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteButton]}
+            onPress={() => handleDeleteLocal(item)}
+          >
+            <Text style={styles.actionButtonText}>🗑</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Audio Upload</Text>
@@ -412,6 +577,24 @@ export default function App() {
           />
         )}
       </View>
+
+      {/* 다운받은 파일 목록 */}
+      <View style={[styles.listContainer, styles.secondListContainer]}>
+        <Text style={styles.sectionTitle}>
+          다운받은 파일 목록 ({localFiles.length})
+        </Text>
+
+        {localFiles.length === 0 ? (
+          <Text style={styles.emptyText}>다운받은 파일이 없습니다.</Text>
+        ) : (
+          <FlatList
+            data={localFiles}
+            renderItem={renderLocalFileItem}
+            keyExtractor={(item) => item.uri}
+            contentContainerStyle={styles.listContent}
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -456,6 +639,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  secondListContainer: {
+    marginTop: 20,
   },
   sectionTitle: {
     fontSize: 18,
