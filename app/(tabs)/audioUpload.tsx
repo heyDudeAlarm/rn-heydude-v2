@@ -4,14 +4,22 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import {
+  deleteDownloadedAudioFile,
+  downloadWithConfirmation,
+  getDownloadedAudioFiles,
+} from "../../utils/audioDownload";
 import { pickAndUploadAudio } from "../../utils/audioUpload";
 import { deleteFile, getSignedUrl, listFiles } from "../../utils/storage";
+import * as FileSystemLegacy from "expo-file-system/legacy";
 
 interface StorageFile {
   name: string;
@@ -22,13 +30,23 @@ interface StorageFile {
   metadata: Record<string, any>;
 }
 
+interface LocalFile {
+  uri: string;
+  name: string;
+  size: number;
+}
+
 export default function App() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [storageFiles, setStorageFiles] = useState<StorageFile[]>([]);
+  const [localFiles, setLocalFiles] = useState<LocalFile[]>([]);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [playingFile, setPlayingFile] = useState<string | null>(null);
+  const [playingLocalFile, setPlayingLocalFile] = useState<string | null>(null);
+  const [showFileNameModal, setShowFileNameModal] = useState(false);
+  const [customFileName, setCustomFileName] = useState("");
 
   // 스토리지 파일 목록 가져오기
   const loadStorageFiles = async () => {
@@ -54,15 +72,40 @@ export default function App() {
     }
   };
 
+  // 로컬 파일 목록 가져오기
+  const loadLocalFiles = async () => {
+    try {
+      const fileUris = await getDownloadedAudioFiles();
+
+      const filesWithInfo = await Promise.all(
+        fileUris.map(async (uri) => {
+          const fileInfo = await FileSystemLegacy.getInfoAsync(uri);
+          const fileName = uri.substring(uri.lastIndexOf("/") + 1);
+
+          return {
+            uri,
+            name: fileName,
+            size: fileInfo.exists && "size" in fileInfo ? fileInfo.size : 0,
+          };
+        })
+      );
+
+      setLocalFiles(filesWithInfo);
+    } catch (error) {
+      console.error("로컬 파일 목록 로드 실패:", error);
+    }
+  };
+
   // 새로고침
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadStorageFiles();
+    await Promise.all([loadStorageFiles(), loadLocalFiles()]);
   };
 
   // 컴포넌트 마운트 시 파일 목록 로드
   useEffect(() => {
     loadStorageFiles();
+    loadLocalFiles();
 
     // cleanup: 컴포넌트 언마운트 시 오디오 정리
     return () => {
@@ -72,13 +115,23 @@ export default function App() {
     };
   }, []);
 
-  const handleAudioUpload = async () => {
+  const handleAudioUpload = () => {
+    // 파일명 입력 모달 표시
+    setCustomFileName("");
+    setShowFileNameModal(true);
+  };
+
+  const handleConfirmUpload = async () => {
     try {
+      setShowFileNameModal(false);
       setUploading(true);
 
       // 'audios'는 Supabase Storage의 버킷 이름입니다
-      // 실제 버킷 이름으로 변경해주세요
-      const result = await pickAndUploadAudio("audios", "uploads");
+      const result = await pickAndUploadAudio(
+        "audios",
+        "uploads",
+        customFileName.trim()
+      );
 
       if (result.error) {
         Alert.alert("업로드 실패", result.error.message);
@@ -151,6 +204,7 @@ export default function App() {
 
       setSound(newSound);
       setPlayingFile(fileName);
+      setPlayingLocalFile(null); // 로컬 파일 재생 상태 초기화
 
       // 재생 완료 시 처리
       newSound.setOnPlaybackStatusUpdate((status) => {
@@ -175,8 +229,10 @@ export default function App() {
   };
 
   // 파일 삭제
-  const handleDelete = async (fileName: string) => {
-    Alert.alert("파일 삭제", `"${fileName}"을(를) 삭제하시겠습니까?`, [
+  const handleDelete = async (item: StorageFile) => {
+    const displayName = getDisplayName(item.name);
+
+    Alert.alert("파일 삭제", `"${displayName}"을(를) 삭제하시겠습니까?`, [
       { text: "취소", style: "cancel" },
       {
         text: "삭제",
@@ -184,7 +240,7 @@ export default function App() {
         onPress: async () => {
           try {
             const { error } = await deleteFile("audios", [
-              `uploads/${fileName}`,
+              `uploads/${item.name}`,
             ]);
 
             if (error) {
@@ -203,6 +259,94 @@ export default function App() {
     ]);
   };
 
+  // 파일 다운로드
+  const handleDownload = async (item: StorageFile) => {
+    const displayName = getDisplayName(item.name);
+    downloadWithConfirmation("audios", `uploads/${item.name}`, displayName, () => {
+      // 다운로드 성공 시 로컬 파일 목록 새로고침
+      loadLocalFiles();
+    });
+  };
+
+  // 로컬 파일 재생/일시정지
+  const handlePlayPauseLocal = async (file: LocalFile) => {
+    try {
+      // 같은 파일을 재생 중이면 일시정지/재생 토글
+      if (playingLocalFile === file.uri && sound) {
+        const status = await sound.getStatusAsync();
+        if (status.isLoaded) {
+          if (status.isPlaying) {
+            await sound.pauseAsync();
+          } else {
+            await sound.playAsync();
+          }
+        }
+        return;
+      }
+
+      // 기존 사운드 정리
+      if (sound) {
+        await sound.unloadAsync();
+      }
+
+      // 로컬 파일 재생
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri: file.uri },
+        { shouldPlay: true }
+      );
+
+      setSound(newSound);
+      setPlayingLocalFile(file.uri);
+      setPlayingFile(null); // 스토리지 파일 재생 상태 초기화
+
+      // 재생 완료 시 처리
+      newSound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setPlayingLocalFile(null);
+        }
+      });
+    } catch (error) {
+      console.error("로컬 파일 재생 에러:", error);
+      Alert.alert("오류", "오디오 재생에 실패했습니다.");
+    }
+  };
+
+  // 로컬 파일 정지
+  const handleStopLocal = async () => {
+    if (sound) {
+      await sound.stopAsync();
+      await sound.unloadAsync();
+      setSound(null);
+      setPlayingLocalFile(null);
+    }
+  };
+
+  // 로컬 파일 삭제
+  const handleDeleteLocal = async (file: LocalFile) => {
+    Alert.alert("파일 삭제", `"${file.name}"을(를) 삭제하시겠습니까?`, [
+      { text: "취소", style: "cancel" },
+      {
+        text: "삭제",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const success = await deleteDownloadedAudioFile(file.name);
+
+            if (success) {
+              Alert.alert("성공", "파일이 삭제되었습니다.");
+              await loadLocalFiles();
+            } else {
+              Alert.alert("오류", "파일 삭제에 실패했습니다.");
+            }
+          } catch (error) {
+            console.error("삭제 에러:", error);
+            Alert.alert("오류", "파일 삭제 중 문제가 발생했습니다.");
+          }
+        },
+      },
+    ]);
+  };
+
   // 파일 크기 포맷
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -210,15 +354,54 @@ export default function App() {
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
+  // 파일명에서 displayName 추출 함수
+  const getDisplayName = (fileName: string): string => {
+    try {
+      // 파일명 형식: [Base64인코딩된한글명]--[타임스탬프].확장자
+      const nameWithoutExt = fileName.substring(0, fileName.lastIndexOf("."));
+
+      // '--'로 구분하여 Base64 부분과 타임스탬프 부분 분리
+      const separatorIndex = nameWithoutExt.lastIndexOf("--");
+
+      if (separatorIndex !== -1) {
+        // '--' 구분자가 있으면 커스텀 파일명
+        const encodedName = nameWithoutExt.substring(0, separatorIndex);
+        const timestamp = nameWithoutExt.substring(separatorIndex + 2);
+
+        // 타임스탬프가 숫자인지 확인
+        if (/^\d+$/.test(timestamp)) {
+          // URL-safe Base64를 일반 Base64로 변환
+          const base64 = encodedName.replace(/-/g, "+").replace(/_/g, "/");
+
+          // 패딩 추가
+          const padded =
+            base64 + "==".substring(0, (4 - (base64.length % 4)) % 4);
+
+          // Base64 디코딩
+          return decodeURIComponent(escape(atob(padded)));
+        }
+      }
+
+      // 디코딩 실패 시 또는 자동 생성된 파일명인 경우 원본 반환
+      return fileName;
+    } catch (error) {
+      console.error("파일명 디코딩 에러:", error);
+      return fileName; // 디코딩 실패 시 원본 반환
+    }
+  };
+
   // 파일 아이템 렌더링
   const renderFileItem = ({ item }: { item: StorageFile }) => {
     const isPlaying = playingFile === item.name;
+
+    // 파일명에서 displayName 추출
+    const displayName = getDisplayName(item.name);
 
     return (
       <View style={styles.fileItem}>
         <View style={styles.fileInfo}>
           <Text style={styles.fileName} numberOfLines={1}>
-            {item.name}
+            {displayName}
           </Text>
           <Text style={styles.fileSize}>
             {formatFileSize(item.metadata?.size || 0)}
@@ -243,8 +426,56 @@ export default function App() {
           )}
 
           <TouchableOpacity
+            style={[styles.actionButton, styles.downloadButton]}
+            onPress={() => handleDownload(item)}
+          >
+            <Text style={styles.actionButtonText}>⬇️</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => handleDelete(item.name)}
+            onPress={() => handleDelete(item)}
+          >
+            <Text style={styles.actionButtonText}>🗑</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  // 로컬 파일 아이템 렌더링
+  const renderLocalFileItem = ({ item }: { item: LocalFile }) => {
+    const isPlaying = playingLocalFile === item.uri;
+
+    return (
+      <View style={styles.fileItem}>
+        <View style={styles.fileInfo}>
+          <Text style={styles.fileName} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={styles.fileSize}>{formatFileSize(item.size)}</Text>
+        </View>
+
+        <View style={styles.fileActions}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.playButton]}
+            onPress={() => handlePlayPauseLocal(item)}
+          >
+            <Text style={styles.actionButtonText}>{isPlaying ? "⏸" : "▶"}</Text>
+          </TouchableOpacity>
+
+          {isPlaying && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.stopButton]}
+              onPress={handleStopLocal}
+            >
+              <Text style={styles.actionButtonText}>⏹</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteButton]}
+            onPress={() => handleDeleteLocal(item)}
           >
             <Text style={styles.actionButtonText}>🗑</Text>
           </TouchableOpacity>
@@ -272,6 +503,51 @@ export default function App() {
         )}
       </TouchableOpacity>
 
+      {/* 파일명 입력 모달 */}
+      <Modal
+        visible={showFileNameModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowFileNameModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>파일명 설정</Text>
+            <Text style={styles.modalDescription}>
+              업로드할 파일명을 입력하세요 (확장자 제외)
+            </Text>
+            <Text style={styles.modalHint}>
+              입력하지 않으면 자동으로 생성됩니다
+            </Text>
+
+            <TextInput
+              style={styles.modalInput}
+              placeholder="예: 내 오디오 파일"
+              placeholderTextColor="#999"
+              value={customFileName}
+              onChangeText={setCustomFileName}
+              autoFocus={true}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setShowFileNameModal(false)}
+              >
+                <Text style={styles.modalButtonTextCancel}>취소</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={handleConfirmUpload}
+              >
+                <Text style={styles.modalButtonTextConfirm}>업로드</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* 스토리지 파일 목록 */}
       <View style={styles.listContainer}>
         <Text style={styles.sectionTitle}>
@@ -294,6 +570,24 @@ export default function App() {
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
+            contentContainerStyle={styles.listContent}
+          />
+        )}
+      </View>
+
+      {/* 다운받은 파일 목록 */}
+      <View style={[styles.listContainer, styles.secondListContainer]}>
+        <Text style={styles.sectionTitle}>
+          다운받은 파일 목록 ({localFiles.length})
+        </Text>
+
+        {localFiles.length === 0 ? (
+          <Text style={styles.emptyText}>다운받은 파일이 없습니다.</Text>
+        ) : (
+          <FlatList
+            data={localFiles}
+            renderItem={renderLocalFileItem}
+            keyExtractor={(item) => item.uri}
             contentContainerStyle={styles.listContent}
           />
         )}
@@ -342,6 +636,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  secondListContainer: {
+    marginTop: 20,
   },
   sectionTitle: {
     fontSize: 18,
@@ -402,11 +699,80 @@ const styles = StyleSheet.create({
   stopButton: {
     backgroundColor: "#FF9500",
   },
+  downloadButton: {
+    backgroundColor: "#34C759",
+  },
   deleteButton: {
     backgroundColor: "#FF3B30",
   },
   actionButtonText: {
     fontSize: 16,
     color: "#fff",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 24,
+    width: "85%",
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 8,
+  },
+  modalDescription: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 4,
+  },
+  modalHint: {
+    fontSize: 12,
+    color: "#999",
+    marginBottom: 16,
+    fontStyle: "italic",
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    marginBottom: 20,
+    backgroundColor: "#f9f9f9",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  modalButtonCancel: {
+    backgroundColor: "#f0f0f0",
+  },
+  modalButtonConfirm: {
+    backgroundColor: "#007AFF",
+  },
+  modalButtonTextCancel: {
+    color: "#666",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalButtonTextConfirm: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

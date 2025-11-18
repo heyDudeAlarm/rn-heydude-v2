@@ -5,6 +5,7 @@ export interface UploadOptions {
   path: string;
   file: Blob | File | ArrayBuffer | Uint8Array;
   contentType?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface UploadResult {
@@ -21,14 +22,22 @@ export async function uploadFile({
   path,
   file,
   contentType,
+  metadata,
 }: UploadOptions): Promise<UploadResult> {
   try {
+    const uploadOptions: any = {
+      contentType,
+      upsert: false,
+    };
+
+    // 메타데이터가 있으면 추가
+    if (metadata) {
+      uploadOptions.metadata = metadata;
+    }
+
     const { data, error } = await supabase.storage
       .from(bucket)
-      .upload(path, file, {
-        contentType,
-        upsert: false,
-      });
+      .upload(path, file, uploadOptions);
 
     if (error) {
       console.error("Upload error:", error);
