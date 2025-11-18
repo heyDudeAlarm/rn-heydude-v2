@@ -142,11 +142,13 @@ export async function deleteDownloadedAudioFile(
  * @param bucket - Supabase Storage 버킷 이름
  * @param filePath - 다운로드할 파일 경로
  * @param displayName - 사용자에게 표시할 파일명
+ * @param onSuccess - 다운로드 성공 시 콜백 (선택사항)
  */
 export async function downloadWithConfirmation(
   bucket: string,
   filePath: string,
-  displayName: string
+  displayName: string,
+  onSuccess?: () => void
 ): Promise<void> {
   Alert.alert("파일 다운로드", `"${displayName}"을(를) 다운로드하시겠습니까?`, [
     {
@@ -164,6 +166,10 @@ export async function downloadWithConfirmation(
             `파일이 저장되었습니다.\n경로: ${result.uri}`,
             [{ text: "확인" }]
           );
+          // 다운로드 성공 시 콜백 호출
+          if (onSuccess) {
+            onSuccess();
+          }
         } else {
           Alert.alert("다운로드 실패", result.error || "알 수 없는 오류", [
             { text: "확인" },

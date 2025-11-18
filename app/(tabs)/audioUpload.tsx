@@ -262,13 +262,10 @@ export default function App() {
   // 파일 다운로드
   const handleDownload = async (item: StorageFile) => {
     const displayName = getDisplayName(item.name);
-    await downloadWithConfirmation(
-      "audios",
-      `uploads/${item.name}`,
-      displayName
-    );
-    // 다운로드 후 로컬 파일 목록 새로고침
-    await loadLocalFiles();
+    downloadWithConfirmation("audios", `uploads/${item.name}`, displayName, () => {
+      // 다운로드 성공 시 로컬 파일 목록 새로고침
+      loadLocalFiles();
+    });
   };
 
   // 로컬 파일 재생/일시정지
