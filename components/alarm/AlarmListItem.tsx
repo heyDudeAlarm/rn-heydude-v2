@@ -1,9 +1,10 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
-import React from 'react';
-import { StyleSheet, Switch, TouchableOpacity } from 'react-native';
+import { AlarmData } from '@/types/alarm';
+import React, { useRef } from 'react';
+import { Alert, Animated, PanResponder, StyleSheet, Switch, TouchableOpacity } from 'react-native';
 import { ThemedText } from '../common/ThemedText';
 import { ThemedView } from '../common/ThemedView';
-import { AlarmData } from './AddAlarmModal';
+import { IconSymbol } from '../ui/IconSymbol';
 
 interface AlarmListItemProps {
   alarm: AlarmData & { id: string; isEnabled: boolean };
@@ -17,6 +18,89 @@ export default function AlarmListItem({ alarm, onToggle, onEdit, onDelete }: Ala
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
   const secondaryTextColor = useThemeColor({ light: '#666', dark: '#999' }, 'text');
+
+  // 스와이프 애니메이션을 위한 Animated.Value
+  const translateX = useRef(new Animated.Value(0)).current;
+  const deleteButtonOpacity = useRef(new Animated.Value(0)).current;
+
+  // PanResponder로 스와이프 제스처 처리
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // 가로 스와이프가 세로 스와이프보다 클 때만 활성화
+        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        // 왼쪽으로만 스와이프 허용 (dx < 0)
+        if (gestureState.dx < 0) {
+          const translateValue = Math.max(gestureState.dx, -80);
+          translateX.setValue(translateValue);
+          deleteButtonOpacity.setValue(Math.abs(translateValue) / 80);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx < -40) {
+          // 40px 이상 스와이프하면 삭제 버튼을 완전히 표시
+          Animated.parallel([
+            Animated.spring(translateX, {
+              toValue: -80,
+              useNativeDriver: false,
+            }),
+            Animated.timing(deleteButtonOpacity, {
+              toValue: 1,
+              duration: 200,
+              useNativeDriver: false,
+            }),
+          ]).start();
+        } else {
+          // 원래 위치로 되돌리기
+          Animated.parallel([
+            Animated.spring(translateX, {
+              toValue: 0,
+              useNativeDriver: false,
+            }),
+            Animated.timing(deleteButtonOpacity, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: false,
+            }),
+          ]).start();
+        }
+      },
+    })
+  ).current;
+
+  const handleDelete = () => {
+    Alert.alert(
+      '알람 삭제',
+      '이 알람을 삭제하시겠습니까?',
+      [
+        {
+          text: '취소',
+          style: 'cancel',
+          onPress: () => {
+            // 취소 시 원래 위치로 되돌리기
+            Animated.parallel([
+              Animated.spring(translateX, {
+                toValue: 0,
+                useNativeDriver: false,
+              }),
+              Animated.timing(deleteButtonOpacity, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: false,
+              }),
+            ]).start();
+          },
+        },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => onDelete(alarm.id),
+        },
+      ]
+    );
+  };
 
   // 시간을 12시간 형식으로 변환
   const formatTime = (date: Date) => {
@@ -32,11 +116,39 @@ export default function AlarmListItem({ alarm, onToggle, onEdit, onDelete }: Ala
 
   return (
     <ThemedView style={[styles.container, { backgroundColor }]}>
-      <TouchableOpacity 
-        style={styles.content} 
-        onPress={() => onEdit(alarm.id)}
-        activeOpacity={0.7}
+      {/* 삭제 버튼 (뒤쪽) */}
+      <Animated.View 
+        style={[
+          styles.deleteButtonContainer,
+          {
+            opacity: deleteButtonOpacity,
+          }
+        ]}
       >
+        <TouchableOpacity 
+          style={styles.deleteButton}
+          onPress={handleDelete}
+        >
+          <IconSymbol name="trash" size={20} color="#fff" />
+          <ThemedText style={styles.deleteButtonText}>삭제</ThemedText>
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* 메인 콘텐츠 (앞쪽) */}
+      <Animated.View
+        style={[
+          styles.swipeableContent,
+          {
+            transform: [{ translateX }],
+          }
+        ]}
+        {...panResponder.panHandlers}
+      >
+        <TouchableOpacity 
+          style={styles.content} 
+          onPress={() => onEdit(alarm.id)}
+          activeOpacity={0.7}
+        >
         {/* 시간 표시 */}
         <ThemedView style={styles.timeContainer}>
           <ThemedText 
@@ -120,6 +232,7 @@ export default function AlarmListItem({ alarm, onToggle, onEdit, onDelete }: Ala
           />
         </ThemedView>
       </TouchableOpacity>
+      </Animated.View>
     </ThemedView>
   );
 }
@@ -174,5 +287,31 @@ const styles = StyleSheet.create({
   switchContainer: {
     flex: 0,
     marginLeft: 16,
+  },
+  deleteButtonContainer: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    backgroundColor: '#FF3B30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 70,
+    height: '80%',
+    borderRadius: 8,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  swipeableContent: {
+    backgroundColor: 'inherit',
   },
 });
