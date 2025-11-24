@@ -1,14 +1,12 @@
-import { AlarmData } from '@/types/alarm';
+import { StoredAlarmData } from '@/types/alarm';
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import { ThemedText } from '../common/ThemedText';
 import { ThemedView } from '../common/ThemedView';
 import AlarmListItem from './AlarmListItem';
 
-export interface AlarmItem extends AlarmData {
-  id: string;
-  isEnabled: boolean;
-}
+// StoredAlarmData를 그대로 사용하되, isEnabled 대신 isActive 사용
+export interface AlarmItem extends StoredAlarmData {}
 
 interface AlarmListProps {
   alarms: AlarmItem[];

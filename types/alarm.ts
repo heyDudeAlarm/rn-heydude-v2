@@ -12,6 +12,14 @@ export interface AlarmData {
   snoozeValue: string;
 }
 
+// 저장된 알람 데이터 (ID와 상태 정보 포함)
+export interface StoredAlarmData extends AlarmData {
+  id: string;
+  isActive: boolean;
+  notificationIds: string[];
+  createdAt: string;
+}
+
 // 요일 목록과 라벨 매핑
 export const DAYS_OF_WEEK: Array<{ key: DayOfWeek; label: string }> = [
   { key: 'sunday', label: '일요일마다' },

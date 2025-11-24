@@ -1,5 +1,5 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { AlarmData } from '@/types/alarm';
+import { StoredAlarmData } from '@/types/alarm';
 import React, { useRef } from 'react';
 import { Alert, Animated, PanResponder, StyleSheet, Switch, TouchableOpacity } from 'react-native';
 import { ThemedText } from '../common/ThemedText';
@@ -7,7 +7,7 @@ import { ThemedView } from '../common/ThemedView';
 import { IconSymbol } from '../ui/IconSymbol';
 
 interface AlarmListItemProps {
-  alarm: AlarmData & { id: string; isEnabled: boolean };
+  alarm: StoredAlarmData;
   onToggle: (id: string, enabled: boolean) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
@@ -114,6 +114,8 @@ export default function AlarmListItem({ alarm, onToggle, onEdit, onDelete }: Ala
   // 반복 설정이 "없음"이 아닐 때만 표시
   const shouldShowRepeat = alarm.repeatValue !== '없음';
 
+
+
   return (
     <ThemedView style={[styles.container, { backgroundColor }]}>
       {/* 삭제 버튼 (뒤쪽) */}
@@ -155,8 +157,8 @@ export default function AlarmListItem({ alarm, onToggle, onEdit, onDelete }: Ala
             style={[
               styles.timeText, 
               { 
-                color: alarm.isEnabled ? textColor : secondaryTextColor,
-                opacity: alarm.isEnabled ? 1 : 0.5
+                color: alarm.isActive ? textColor : secondaryTextColor,
+                opacity: alarm.isActive ? 1 : 0.5
               }
             ]}
             allowFontScaling={false}
@@ -172,8 +174,8 @@ export default function AlarmListItem({ alarm, onToggle, onEdit, onDelete }: Ala
             style={[
               styles.labelText,
               { 
-                color: alarm.isEnabled ? textColor : secondaryTextColor,
-                opacity: alarm.isEnabled ? 1 : 0.5
+                color: alarm.isActive ? textColor : secondaryTextColor,
+                opacity: alarm.isActive ? 1 : 0.5
               }
             ]}
           >
@@ -187,7 +189,7 @@ export default function AlarmListItem({ alarm, onToggle, onEdit, onDelete }: Ala
                   styles.detailText,
                   { 
                     color: secondaryTextColor,
-                    opacity: alarm.isEnabled ? 1 : 0.5
+                    opacity: alarm.isActive ? 1 : 0.5
                   }
                 ]}
               >
@@ -199,7 +201,7 @@ export default function AlarmListItem({ alarm, onToggle, onEdit, onDelete }: Ala
                 styles.detailText,
                 { 
                   color: secondaryTextColor,
-                  opacity: alarm.isEnabled ? 1 : 0.5
+                  opacity: alarm.isActive ? 1 : 0.5
                 }
               ]}
             >
@@ -211,7 +213,7 @@ export default function AlarmListItem({ alarm, onToggle, onEdit, onDelete }: Ala
                   styles.detailText,
                   { 
                     color: secondaryTextColor,
-                    opacity: alarm.isEnabled ? 1 : 0.5
+                    opacity: alarm.isActive ? 1 : 0.5
                   }
                 ]}
               >
@@ -224,10 +226,10 @@ export default function AlarmListItem({ alarm, onToggle, onEdit, onDelete }: Ala
         {/* 활성화/비활성화 스위치 */}
         <ThemedView style={styles.switchContainer}>
           <Switch
-            value={alarm.isEnabled}
+            value={alarm.isActive}
             onValueChange={(enabled) => onToggle(alarm.id, enabled)}
             trackColor={{ false: '#767577', true: '#34C759' }}
-            thumbColor={alarm.isEnabled ? '#fff' : '#f4f3f4'}
+            thumbColor={alarm.isActive ? '#fff' : '#f4f3f4'}
             ios_backgroundColor="#3e3e3e"
           />
         </ThemedView>

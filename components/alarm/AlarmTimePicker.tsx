@@ -19,7 +19,10 @@ export default function AlarmTimePicker({ selectedTime, onTimeChange }: AlarmTim
       setShowAndroidPicker(false);
     }
     if (date) {
-      onTimeChange(date);
+      // 초와 밀리초를 0으로 설정하여 정확히 00초에 울리도록 함
+      const exactTime = new Date(date);
+      exactTime.setSeconds(0, 0);
+      onTimeChange(exactTime);
     }
   };
 

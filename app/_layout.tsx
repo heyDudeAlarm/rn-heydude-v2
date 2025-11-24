@@ -1,7 +1,7 @@
 import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
+    DarkTheme,
+    DefaultTheme,
+    ThemeProvider,
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -39,6 +39,8 @@ if (typeof global.Blob === "undefined") {
 }
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { restoreAlarms } from "@/utils/alarmService";
+import { useEffect } from "react";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -46,6 +48,19 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  // 앱 시작 시 알람 복원
+  useEffect(() => {
+    const initializeAlarms = async () => {
+      try {
+        await restoreAlarms();
+      } catch (error) {
+        console.error('알람 복원 중 오류:', error);
+      }
+    };
+
+    initializeAlarms();
+  }, []);
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>

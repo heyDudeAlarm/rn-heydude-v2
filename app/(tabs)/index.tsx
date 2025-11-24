@@ -1,48 +1,37 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
 import AddAlarmModal from '@/components/alarm/AddAlarmModal';
 import AlarmHeader from '@/components/alarm/AlarmHeader';
 import AlarmList, { AlarmItem } from '@/components/alarm/AlarmList';
 import ParallaxScrollView from '@/components/layout/ParallaxScrollView';
-import { AlarmData } from '@/types/alarm';
-
-// AsyncStorage에 저장할 키
-const ALARMS_STORAGE_KEY = '@heydude_alarms';
+import { StoredAlarmData } from '@/types/alarm';
+import { deleteAlarm, getStoredAlarms, toggleAlarm } from '@/utils/alarmService';
 
 export default function HomeScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [alarms, setAlarms] = useState<AlarmItem[]>([]);
   const [editingAlarmId, setEditingAlarmId] = useState<string | undefined>();
-  const [editingAlarmData, setEditingAlarmData] = useState<AlarmData | undefined>();
+  const [editingAlarmData, setEditingAlarmData] = useState<StoredAlarmData | undefined>();
+  const [isLoading, setIsLoading] = useState(false);
 
-  // 로컬 스토리지에서 알람 데이터 로드
+  // 저장된 알람들을 로드
   const loadAlarms = async () => {
     try {
-      const storedAlarms = await AsyncStorage.getItem(ALARMS_STORAGE_KEY);
-      if (storedAlarms) {
-        const parsedAlarms: AlarmItem[] = JSON.parse(storedAlarms);
-        // Date 객체를 다시 생성 (JSON.parse는 Date를 문자열로 파싱)
-        const alarmsWithDates = parsedAlarms.map(alarm => ({
-          ...alarm,
-          selectedTime: new Date(alarm.selectedTime),
-        }));
-        setAlarms(alarmsWithDates);
-      }
+      setIsLoading(true);
+      const storedAlarms = await getStoredAlarms();
+      // Date 객체를 다시 생성 (JSON.parse는 Date를 문자열로 파싱)
+      const alarmsWithDates = storedAlarms.map(alarm => ({
+        ...alarm,
+        selectedTime: new Date(alarm.selectedTime),
+      }));
+      setAlarms(alarmsWithDates);
     } catch (error) {
       console.error('❌ 알람 로드 실패:', error);
-      // 에러 발생 시 빈 배열로 초기화
+      Alert.alert('오류', '알람 데이터를 불러오는 중 오류가 발생했습니다.');
       setAlarms([]);
-    }
-  };
-
-  // 로컬 스토리지에 알람 데이터 저장
-  const saveAlarms = async (alarmsToSave: AlarmItem[]) => {
-    try {
-      await AsyncStorage.setItem(ALARMS_STORAGE_KEY, JSON.stringify(alarmsToSave));
-    } catch (error) {
-      console.error('❌ 알람 저장 실패:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -64,43 +53,26 @@ export default function HomeScreen() {
     setEditingAlarmData(undefined);
   };
 
-  const handleSaveAlarm = async (alarmData: AlarmData) => {
-    let updatedAlarms: AlarmItem[];
-
-    if (editingAlarmId) {
-      // 편집 모드: 기존 알람 업데이트
-      updatedAlarms = alarms.map(alarm =>
-        alarm.id === editingAlarmId
-          ? { ...alarm, ...alarmData }
-          : alarm
-      );
-    } else {
-      // 신규 모드: 새 알람 추가
-      const newAlarm: AlarmItem = {
-        id: Date.now().toString(), // 간단한 ID 생성 (실제로는 uuid 사용 권장)
-        ...alarmData,
-        isEnabled: true, // 기본적으로 활성화 상태
-      };
-      updatedAlarms = [...alarms, newAlarm];
-    }
-
-    setAlarms(updatedAlarms);
-    
-    // 로컬 스토리지에 저장
-    await saveAlarms(updatedAlarms);
-    
+  const handleSaveAlarm = async (savedAlarm: StoredAlarmData) => {
+    // 알람이 이미 저장되어 있으므로 목록만 업데이트
+    await loadAlarms(); // 최신 데이터로 새로고침
     setIsModalVisible(false);
+    setEditingAlarmId(undefined);
+    setEditingAlarmData(undefined);
   };
 
   // 알람 활성화/비활성화 토글
   const handleToggleAlarm = async (id: string, enabled: boolean) => {
-    const updatedAlarms = alarms.map(alarm =>
-      alarm.id === id ? { ...alarm, isEnabled: enabled } : alarm
-    );
-    setAlarms(updatedAlarms);
-    
-    // 로컬 스토리지에 저장
-    await saveAlarms(updatedAlarms);
+    try {
+      await toggleAlarm(id, enabled);
+      // UI 즉시 업데이트
+      setAlarms(prev => prev.map(alarm =>
+        alarm.id === id ? { ...alarm, isActive: enabled } : alarm
+      ));
+    } catch (error) {
+      console.error('알람 토글 오류:', error);
+      Alert.alert('오류', '알람 설정을 변경할 수 없습니다.');
+    }
   };
 
   // 알람 편집
@@ -108,25 +80,20 @@ export default function HomeScreen() {
     const alarmToEdit = alarms.find(alarm => alarm.id === id);
     if (alarmToEdit) {
       setEditingAlarmId(id);
-      setEditingAlarmData({
-        selectedTime: alarmToEdit.selectedTime,
-        selectedDays: alarmToEdit.selectedDays,
-        repeatValue: alarmToEdit.repeatValue,
-        labelValue: alarmToEdit.labelValue,
-        soundValue: alarmToEdit.soundValue,
-        snoozeValue: alarmToEdit.snoozeValue,
-      });
+      setEditingAlarmData(alarmToEdit);
       setIsModalVisible(true);
     }
   };
 
   // 알람 삭제
   const handleDeleteAlarm = async (id: string) => {
-    const updatedAlarms = alarms.filter(alarm => alarm.id !== id);
-    setAlarms(updatedAlarms);
-    
-    // 로컬 스토리지에 저장
-    await saveAlarms(updatedAlarms);
+    try {
+      await deleteAlarm(id);
+      setAlarms(prev => prev.filter(alarm => alarm.id !== id));
+    } catch (error) {
+      console.error('알람 삭제 오류:', error);
+      Alert.alert('오류', '알람을 삭제할 수 없습니다.');
+    }
   };
 
   return (
