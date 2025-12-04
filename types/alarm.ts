@@ -21,7 +21,7 @@ export interface StoredAlarmData extends AlarmData {
 }
 
 // 요일 목록과 라벨 매핑
-export const DAYS_OF_WEEK: Array<{ key: DayOfWeek; label: string }> = [
+export const DAYS_OF_WEEK: { key: DayOfWeek; label: string }[] = [
   { key: 'sunday', label: '일요일마다' },
   { key: 'monday', label: '월요일마다' },
   { key: 'tuesday', label: '화요일마다' },

@@ -186,6 +186,8 @@ export default function AddAlarmModal({ visible, onClose, onSave, editAlarmId, e
   };
 
   const handleSoundSave = (selectedSound: string) => {
+    console.log('🔊 사운드 저장:', selectedSound);
+    
     // 사운드 키를 표시용 텍스트로 변환
     const soundLabels: { [key: string]: string } = {
       'radar': '레이더',
@@ -197,7 +199,13 @@ export default function AddAlarmModal({ visible, onClose, onSave, editAlarmId, e
       'wave': '웨이브',
       'marimba': '마림바'
     };
-    setSoundValue(soundLabels[selectedSound] || selectedSound);
+    
+    const displayText = soundLabels[selectedSound] || selectedSound;
+    setSoundValue(displayText);
+    console.log('✅ 사운드 값 설정:', displayText);
+    
+    // 메인 화면으로 돌아가기
+    goBackToMain();
   };
 
   // 현재 사운드 값을 키로 변환하는 함수
@@ -236,17 +244,6 @@ export default function AddAlarmModal({ visible, onClose, onSave, editAlarmId, e
         soundValue,
         snoozeValue: snoozeEnabled ? '켜짐' : '꺼짐'
       };
-      
-      // 과거 시간 체크 (일회성 알람의 경우)
-      if (selectedDays.length === 0 && selectedTime <= new Date()) {
-        Alert.alert(
-          '시간 오류',
-          '알람 시간은 현재 시간보다 이후로 설정해야 합니다.',
-          [{ text: '확인' }]
-        );
-        setIsSaving(false);
-        return;
-      }
       
       // 알람 저장 및 스케줄링
       const savedAlarm = await saveAlarm(alarmData, editAlarmId);

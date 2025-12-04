@@ -1,24 +1,45 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import AddAlarmModal from '@/components/alarm/AddAlarmModal';
 import AlarmHeader from '@/components/alarm/AlarmHeader';
 import AlarmList, { AlarmItem } from '@/components/alarm/AlarmList';
+import { ThemedText } from '@/components/common/ThemedText';
 import ParallaxScrollView from '@/components/layout/ParallaxScrollView';
 import { StoredAlarmData } from '@/types/alarm';
-import { deleteAlarm, getStoredAlarms, toggleAlarm } from '@/utils/alarmService';
+import { deleteAlarm, getStoredAlarms, restoreAlarms, toggleAlarm } from '@/utils/alarmService';
+import { clearAllSoundFiles, getStorageSoundFiles, initializeSounds } from '@/utils/soundManager';
 
 export default function HomeScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [alarms, setAlarms] = useState<AlarmItem[]>([]);
   const [editingAlarmId, setEditingAlarmId] = useState<string | undefined>();
   const [editingAlarmData, setEditingAlarmData] = useState<StoredAlarmData | undefined>();
-  const [isLoading, setIsLoading] = useState(false);
+
+  // 사운드 초기화 및 알람 복원
+  const initializeApp = useCallback(async () => {
+    try {
+      // 사운드 파일 초기화
+      console.log('🎵 사운드 파일 초기화 시작...');
+      await initializeSounds();
+      console.log('✅ 사운드 파일 초기화 완료');
+      
+      // 알람 복원
+      console.log('⏰ 알람 복원 시작...');
+      await restoreAlarms();
+      console.log('✅ 알람 복원 완료');
+      
+      // 저장된 알람 로드
+      await loadAlarms();
+    } catch (error) {
+      console.error('❌ 앱 초기화 실패:', error);
+      Alert.alert('오류', '앱 초기화에 실패했습니다. 앱을 다시 시작해주세요.');
+    }
+  }, []);
 
   // 저장된 알람들을 로드
   const loadAlarms = async () => {
     try {
-      setIsLoading(true);
       const storedAlarms = await getStoredAlarms();
       // Date 객체를 다시 생성 (JSON.parse는 Date를 문자열로 파싱)
       const alarmsWithDates = storedAlarms.map(alarm => ({
@@ -26,19 +47,18 @@ export default function HomeScreen() {
         selectedTime: new Date(alarm.selectedTime),
       }));
       setAlarms(alarmsWithDates);
+      console.log(`✅ ${alarmsWithDates.length}개 알람 로드 완료`);
     } catch (error) {
       console.error('❌ 알람 로드 실패:', error);
       Alert.alert('오류', '알람 데이터를 불러오는 중 오류가 발생했습니다.');
       setAlarms([]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  // 컴포넌트 마운트 시 저장된 알람들 로드
+  // 컴포넌트 마운트 시 앱 초기화
   useEffect(() => {
-    loadAlarms();
-  }, []);
+    initializeApp();
+  }, [initializeApp]);
 
   const handleAddAlarm = () => {
     // 신규 알람 추가
@@ -96,6 +116,52 @@ export default function HomeScreen() {
     }
   };
 
+  // 사운드 파일 모두 삭제 (개발 모드에서만)
+  const handleClearAllSounds = async () => {
+    try {
+      const beforeFiles = await getStorageSoundFiles();
+      console.log('삭제 전 파일들:', beforeFiles);
+      
+      if (beforeFiles.length === 0) {
+        Alert.alert('알림', '삭제할 사운드 파일이 없습니다.');
+        return;
+      }
+      
+      Alert.alert(
+        '사운드 파일 삭제',
+        `${beforeFiles.length}개의 사운드 파일을 모두 삭제하시겠습니까?\n\n파일 목록:\n${beforeFiles.join('\n')}`,
+        [
+          { text: '취소', style: 'cancel' },
+          {
+            text: '삭제',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                console.log('🗑️ 사운드 파일 삭제 시작...');
+                await clearAllSoundFiles();
+                
+                const afterFiles = await getStorageSoundFiles();
+                console.log('삭제 후 파일들:', afterFiles);
+                
+                if (afterFiles.length === 0) {
+                  Alert.alert('완료', '모든 사운드 파일이 삭제되었습니다.');
+                } else {
+                  Alert.alert('부분 완료', `${afterFiles.length}개의 파일이 남아있습니다:\n${afterFiles.join('\n')}`);
+                }
+              } catch (error) {
+                console.error('사운드 파일 삭제 실패:', error);
+                Alert.alert('오류', '사운드 파일 삭제 중 오류가 발생했습니다.');
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('사운드 파일 확인 실패:', error);
+      Alert.alert('오류', '사운드 파일을 확인할 수 없습니다.');
+    }
+  };
+
   return (
     <>
       <ParallaxScrollView>
@@ -106,6 +172,21 @@ export default function HomeScreen() {
           onEditAlarm={handleEditAlarm}
           onDeleteAlarm={handleDeleteAlarm}
         />
+        
+        {/* 개발 모드에서만 보이는 사운드 파일 삭제 버튼 */}
+        {__DEV__ && (
+          <View style={styles.devSection}>
+            <TouchableOpacity 
+              style={styles.clearSoundsButton}
+              onPress={handleClearAllSounds}
+              activeOpacity={0.7}
+            >
+              <ThemedText style={styles.clearSoundsButtonText}>
+                🗑️ 모든 사운드 파일 삭제 (개발용)
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+        )}
       </ParallaxScrollView>
       
       <AddAlarmModal 
@@ -120,5 +201,23 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  // 나중에 필요한 스타일들을 여기에 추가
+  devSection: {
+    marginTop: 40,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+  },
+  clearSoundsButton: {
+    backgroundColor: '#FF3B30',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  clearSoundsButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });

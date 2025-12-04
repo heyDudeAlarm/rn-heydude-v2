@@ -1,12 +1,17 @@
 import {
-    DarkTheme,
-    DefaultTheme,
-    ThemeProvider,
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import "react-native-url-polyfill/auto";
+
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { restoreAlarms } from "@/utils/alarmService";
+import { cleanupNotificationListeners, setupNotificationListeners } from "@/utils/notificationListeners";
+import { useEffect } from "react";
 
 // React Native Blob polyfill
 if (typeof global.Blob === "undefined") {
@@ -38,9 +43,10 @@ if (typeof global.Blob === "undefined") {
   } as any;
 }
 
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { restoreAlarms } from "@/utils/alarmService";
-import { useEffect } from "react";
+// 개발자 도구 로드
+if (__DEV__) {
+  require("@/utils/devTools");
+}
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -49,7 +55,7 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
-  // 앱 시작 시 알람 복원
+  // 앱 시작 시 알람 복원 및 알림 리스너 설정
   useEffect(() => {
     const initializeAlarms = async () => {
       try {
@@ -59,7 +65,15 @@ export default function RootLayout() {
       }
     };
 
+    // 알림 리스너 설정
+    const subscriptions = setupNotificationListeners();
+    
     initializeAlarms();
+
+    // 클린업 함수
+    return () => {
+      cleanupNotificationListeners(subscriptions);
+    };
   }, []);
 
   return (

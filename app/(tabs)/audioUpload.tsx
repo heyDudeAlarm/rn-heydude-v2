@@ -1,14 +1,15 @@
 import { Audio } from "expo-av";
+import * as FileSystem from 'expo-file-system/legacy';
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { pickAndUploadAudio } from "../../utils/audioUpload";
 import { deleteFile, getSignedUrl, listFiles } from "../../utils/storage";
@@ -29,6 +30,7 @@ export default function App() {
   const [storageFiles, setStorageFiles] = useState<StorageFile[]>([]);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [playingFile, setPlayingFile] = useState<string | null>(null);
+  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
 
   // 스토리지 파일 목록 가져오기
   const loadStorageFiles = async () => {
@@ -203,6 +205,125 @@ export default function App() {
     ]);
   };
 
+  // 단일 파일 다운로드
+  const handleDownload = async (fileName: string) => {
+    try {
+      setDownloadingFiles(prev => new Set(prev).add(fileName));
+      
+      // 로컬 사운드 디렉터리 경로
+      const soundDirectory = `${FileSystem.documentDirectory}sounds/`;
+      
+      // 사운드 디렉터리 생성
+      const dirInfo = await FileSystem.getInfoAsync(soundDirectory);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(soundDirectory, { intermediates: true });
+      }
+      
+      // 서명된 URL 가져오기
+      const { url: fileUrl, error } = await getSignedUrl(
+        "audios",
+        `uploads/${fileName}`,
+        3600
+      );
+      
+      if (error || !fileUrl) {
+        console.error("URL 가져오기 에러:", error);
+        Alert.alert("오류", "파일 URL을 가져올 수 없습니다.");
+        return;
+      }
+      
+      // 로컬 파일 경로
+      const localFilePath = `${soundDirectory}${fileName}`;
+      
+      console.log(`🔄 다운로드 시작: ${fileName}`);
+      console.log(`  - 원본 URL: ${fileUrl}`);
+      console.log(`  - 저장 경로: ${localFilePath}`);
+      console.log(`  - 사운드 디렉터리: ${soundDirectory}`);
+      console.log(`  - FileSystem.documentDirectory: ${FileSystem.documentDirectory}`);
+      
+      // 파일 다운로드
+      const downloadResult = await FileSystem.downloadAsync(fileUrl, localFilePath);
+      
+      console.log(`✅ 다운로드 완료:`, downloadResult);
+      console.log(`  - 다운로드 결과 URI: ${downloadResult.uri}`);
+      console.log(`  - 예상 경로와 일치: ${downloadResult.uri === localFilePath}`);
+      
+      // 다운로드 직후 디렉터리 내용 확인
+      try {
+        const filesInDir = await FileSystem.readDirectoryAsync(soundDirectory);
+        console.log(`  - 다운로드 후 디렉터리 내 파일들: ${filesInDir}`);
+        console.log(`  - 다운로드한 파일 존재 확인: ${filesInDir.includes(fileName)}`);
+      } catch (dirReadError) {
+        console.error('  - 디렉터리 읽기 실패:', dirReadError);
+      }
+      
+      // 파일 저장 확인
+      const savedFileInfo = await FileSystem.getInfoAsync(localFilePath);
+      console.log(`  - 파일 존재 최종 확인: ${savedFileInfo.exists}`);
+      console.log(`  - 파일 정보:`, savedFileInfo);
+      if (savedFileInfo.exists) {
+        // 다운로드 성공 후 즉시 사운드 로드 테스트
+        console.log('🧪 다운로드 완료 후 즉시 사운드 로드 테스트...');
+        
+        Alert.alert(
+          "다운로드 완료", 
+          `"${fileName}" 파일이 로컬 스토리지에 저장되었습니다.\n\n경로: ${localFilePath}\n\n잠시 후 사운드 미리보기로 확인해보세요.`
+        );
+      } else {
+        Alert.alert("오류", `파일 저장에 실패했습니다.\n\n예상 경로: ${localFilePath}\n실제 상태: 파일 없음`);
+      }
+      
+    } catch (error) {
+      console.error("다운로드 오류:", error);
+      Alert.alert("오류", "다운로드 중 오류가 발생했습니다.");
+    } finally {
+      setDownloadingFiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fileName);
+        return newSet;
+      });
+    }
+  };
+
+  // 모든 파일 다운로드
+  const handleDownloadAll = async () => {
+    if (storageFiles.length === 0) {
+      Alert.alert("알림", "다운로드할 파일이 없습니다.");
+      return;
+    }
+    
+    Alert.alert(
+      "모든 파일 다운로드",
+      `${storageFiles.length}개의 파일을 모두 로컬 스토리지에 다운로드하시겠습니까?`,
+      [
+        { text: "취소", style: "cancel" },
+        {
+          text: "다운로드",
+          onPress: async () => {
+            let successCount = 0;
+            let failCount = 0;
+            
+            for (const file of storageFiles) {
+              try {
+                console.log(`📥 다운로드 중: ${file.name} (${successCount + failCount + 1}/${storageFiles.length})`);
+                await handleDownload(file.name);
+                successCount++;
+              } catch (error) {
+                console.error(`❌ 다운로드 실패: ${file.name}`, error);
+                failCount++;
+              }
+            }
+            
+            Alert.alert(
+              "다운로드 완료",
+              `성공: ${successCount}개\n실패: ${failCount}개`
+            );
+          }
+        }
+      ]
+    );
+  };
+  
   // 파일 크기 포맷
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -213,6 +334,7 @@ export default function App() {
   // 파일 아이템 렌더링
   const renderFileItem = ({ item }: { item: StorageFile }) => {
     const isPlaying = playingFile === item.name;
+    const isDownloading = downloadingFiles.has(item.name);
 
     return (
       <View style={styles.fileItem}>
@@ -229,6 +351,7 @@ export default function App() {
           <TouchableOpacity
             style={[styles.actionButton, styles.playButton]}
             onPress={() => handlePlayPause(item.name)}
+            disabled={isDownloading}
           >
             <Text style={styles.actionButtonText}>{isPlaying ? "⏸" : "▶"}</Text>
           </TouchableOpacity>
@@ -241,10 +364,23 @@ export default function App() {
               <Text style={styles.actionButtonText}>⏹</Text>
             </TouchableOpacity>
           )}
+          
+          <TouchableOpacity
+            style={[styles.actionButton, styles.downloadButton]}
+            onPress={() => handleDownload(item.name)}
+            disabled={isDownloading}
+          >
+            {isDownloading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.actionButtonText}>📥</Text>
+            )}
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.actionButton, styles.deleteButton]}
             onPress={() => handleDelete(item.name)}
+            disabled={isDownloading}
           >
             <Text style={styles.actionButtonText}>🗑</Text>
           </TouchableOpacity>
@@ -271,6 +407,17 @@ export default function App() {
           </Text>
         )}
       </TouchableOpacity>
+      
+      {storageFiles.length > 0 && (
+        <TouchableOpacity
+          style={[styles.downloadAllButton]}
+          onPress={handleDownloadAll}
+        >
+          <Text style={styles.downloadAllButtonText}>
+            📥 모든 파일 로컬에 다운로드 ({storageFiles.length}개)
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* 스토리지 파일 목록 */}
       <View style={styles.listContainer}>
@@ -402,8 +549,24 @@ const styles = StyleSheet.create({
   stopButton: {
     backgroundColor: "#FF9500",
   },
+  downloadButton: {
+    backgroundColor: "#34C759",
+  },
   deleteButton: {
     backgroundColor: "#FF3B30",
+  },
+  downloadAllButton: {
+    backgroundColor: "#34C759",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 20,
+    alignItems: "center",
+  },
+  downloadAllButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
   actionButtonText: {
     fontSize: 16,

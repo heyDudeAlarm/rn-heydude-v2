@@ -3,6 +3,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { SoundType } from './soundManager';
+
+// 사운드 값을 SoundType으로 변환 - 이제 단순히 문자열 그대로 사용
+const getSoundTypeFromValue = (soundValue: string): SoundType => {
+  // 파일명에 확장자가 없으면 그대로 사용 (loadSound에서 .wav 추가)
+  // 있으면 그대로 사용
+  return soundValue || 'default';
+};
 
 // 알람 데이터 인터페이스 확장
 export interface StoredAlarmData extends AlarmData {
@@ -12,15 +20,20 @@ export interface StoredAlarmData extends AlarmData {
   createdAt: string;
 }
 
-// 알림 설정
+// 알림 설정 - 사운드 재생은 포그라운드 리스너에서만 처리
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    // 백그라운드에서는 알림만 표시하고 사운드는 포그라운드 리스너에서 처리
+    console.log('알림 핸들러에서 알림 수신:', notification.request.content.data);
+    
+    return {
+      shouldShowAlert: true,
+      shouldPlaySound: false, // 커스텀 사운드를 사용하므로 시스템 사운드 비활성화
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    };
+  },
 });
 
 // 요일을 숫자로 변환 (일요일: 1, 월요일: 2, ..., 토요일: 7)
@@ -35,6 +48,33 @@ const dayOfWeekToNumber = (day: DayOfWeek): number => {
     saturday: 7,
   };
   return dayMap[day];
+};
+
+// 백그라운드 알람 지원 설정
+export const configureBackgroundAlarms = async (): Promise<void> => {
+  if (Platform.OS === 'ios') {
+    // iOS에서 백그라운드 알람을 위한 추가 설정
+    await Notifications.setNotificationCategoryAsync('background-alarm', [
+      {
+        identifier: 'wake_up',
+        buttonTitle: '일어나기',
+        options: { 
+          opensAppToForeground: true,
+          isDestructive: false,
+        },
+      },
+      {
+        identifier: 'stop_alarm',
+        buttonTitle: '알람 중지',
+        options: { 
+          opensAppToForeground: true,
+          isDestructive: true,
+        },
+      },
+    });
+  }
+  
+  console.log('✅ 백그라운드 알람 설정 완료');
 };
 
 // 알림 권한 요청
@@ -133,42 +173,58 @@ export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Prom
         exactTime.setDate(exactTime.getDate() + 1);
       }
       
+      const soundType = getSoundTypeFromValue(soundValue);
       const notificationRequest: any = {
         content: {
           title: '🚨 알람 울림!',
           body: `⏰ ${labelValue}\n지금 일어날 시간입니다!`,
-          sound: soundValue === '없음' ? false : 'default',
+          sound: soundValue === '없음' ? false : false, // 시스템 소리 비활성화 (커스텀 사운드만 사용)
           categoryIdentifier: Platform.OS === 'ios' ? 'alarm' : undefined,
-          data: { alarmId, type: 'alarm' },
+          data: { 
+            alarmId, 
+            type: 'alarm',
+            soundType: soundType, // 커스텀 사운드 정보 추가
+            soundValue: soundValue,
+            labelValue: labelValue
+          },
           priority: Notifications.AndroidNotificationPriority.MAX,
           vibrate: [0, 250, 250, 250],
           sticky: true,
           autoDismiss: false,
           badge: 1,
-          // iOS 잠금화면 최적화
+          // iOS 잠금화면 최적화 및 앱 종료 시에도 알람 지속
           ...(Platform.OS === 'ios' && {
             critical: true, // Critical alert로 설정 (방해금지 모드도 우회)
             interruptionLevel: 'critical',
             subtitle: '지금 일어나세요!',
             threadIdentifier: 'alarm',
+            // 앱이 종료되어도 알람이 계속 울리도록 설정
+            launchImageName: 'AlarmLaunchImage',
+            attachments: [],
           }),
         },
         trigger: exactTime,
       };
 
-      // Android의 경우 잠금화면 큰 알림을 위한 설정 추가
+      // Android의 경우 잠금화면 큰 알림 및 앱 종료 시에도 알람 지속
       if (Platform.OS === 'android') {
         notificationRequest.content.android = {
           channelId: 'alarm',
           priority: 'max',
           importance: 'high',
+          // 앱이 종료되어도 전체 화면 알람 표시
           fullScreenIntent: {
             launchActivity: 'default',
           },
           visibility: 'public',
           showWhen: true,
-          ongoing: true,
-          timeoutAfter: null,
+          ongoing: true, // 지속적인 알림
+          timeoutAfter: null, // 자동 사라지지 않음
+          // 앱 종료 시에도 알람 지속을 위한 설정
+          autoCancel: false,
+          insistent: true, // 반복적인 알림
+          colorized: true,
+          color: '#FF3B30',
         };
       }
 
@@ -176,14 +232,21 @@ export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Prom
       notificationIds.push(notificationId);
     } else {
       // 반복 알람
+      const soundType = getSoundTypeFromValue(soundValue);
       for (const day of selectedDays) {
         const notificationRequest: any = {
           content: {
             title: '🚨 알람 울림!',
             body: `⏰ ${labelValue}\n지금 일어날 시간입니다!`,
-            sound: soundValue === '없음' ? false : 'default',
+            sound: soundValue === '없음' ? false : false, // 커스텀 사운드만 사용
             categoryIdentifier: Platform.OS === 'ios' ? 'alarm' : undefined,
-            data: { alarmId, type: 'alarm' },
+            data: { 
+              alarmId, 
+              type: 'alarm',
+              soundType: soundType, // 커스텀 사운드 정보 추가
+              soundValue: soundValue,
+              labelValue: labelValue
+            },
             priority: Notifications.AndroidNotificationPriority.MAX,
             vibrate: [0, 250, 250, 250],
             sticky: true,
