@@ -9,7 +9,7 @@ import "react-native-reanimated";
 import "react-native-url-polyfill/auto";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { restoreAlarms } from "@/utils/alarmService";
+import { configureBackgroundAlarms, restoreAlarms } from "@/utils/alarmService";
 import { cleanupNotificationListeners, setupNotificationListeners } from "@/utils/notificationListeners";
 import { useEffect } from "react";
 
@@ -59,9 +59,13 @@ export default function RootLayout() {
   useEffect(() => {
     const initializeAlarms = async () => {
       try {
+        // 백그라운드 알람 설정 초기화
+        await configureBackgroundAlarms();
+        
+        // 기존 알람 복원
         await restoreAlarms();
       } catch (error) {
-        console.error('알람 복원 중 오류:', error);
+        console.error('알람 초기화 중 오류:', error);
       }
     };
 

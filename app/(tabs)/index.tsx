@@ -41,13 +41,9 @@ export default function HomeScreen() {
   const loadAlarms = async () => {
     try {
       const storedAlarms = await getStoredAlarms();
-      // Date 객체를 다시 생성 (JSON.parse는 Date를 문자열로 파싱)
-      const alarmsWithDates = storedAlarms.map(alarm => ({
-        ...alarm,
-        selectedTime: new Date(alarm.selectedTime),
-      }));
-      setAlarms(alarmsWithDates);
-      console.log(`✅ ${alarmsWithDates.length}개 알람 로드 완료`);
+      // selectedTime은 이미 { hours, minutes } 형태로 저장되어 있음
+      setAlarms(storedAlarms);
+      console.log(`✅ ${storedAlarms.length}개 알람 로드 완료`);
     } catch (error) {
       console.error('❌ 알람 로드 실패:', error);
       Alert.alert('오류', '알람 데이터를 불러오는 중 오류가 발생했습니다.');

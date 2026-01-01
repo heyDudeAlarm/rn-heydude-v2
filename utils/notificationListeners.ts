@@ -18,6 +18,21 @@ export const setupNotificationListeners = () => {
     }
   });
 
+  // 백그라운드에서 알림 수신 시 처리 (앱 종료 시에도 동작)
+  const backgroundSubscription = Notifications.addNotificationReceivedListener(async (notification) => {
+    const data = notification.request.content.data;
+    
+    if (data && data.type === 'alarm') {
+      console.log('백그라운드에서 알람 수신 (앱 종료 시에도 동작):', data);
+      
+      // 백그라운드에서는 시스템 소리에 의존 (notification.content.sound = 'default')
+      // Android에서는 insistent: true 설정으로 반복 재생됨
+      
+      // 필요시 여기에 추가 백그라운드 로직 구현 가능
+      // 예: 로그 저장, 통계 업데이트 등
+    }
+  });
+
   // 알림 응답 리스너 (사용자가 알림을 탭했을 때)
   const responseSubscription = Notifications.addNotificationResponseReceivedListener(async (response) => {
     const data = response.notification.request.content.data;
@@ -54,6 +69,7 @@ export const setupNotificationListeners = () => {
 
   return {
     foregroundSubscription,
+    backgroundSubscription,
     responseSubscription,
   };
 };

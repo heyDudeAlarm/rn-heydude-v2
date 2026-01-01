@@ -3,14 +3,14 @@ import { AlarmData, DayOfWeek, getRepeatDisplayText, StoredAlarmData } from '@/t
 import { saveAlarm } from '@/utils/alarmService';
 import React, { useState } from 'react';
 import {
-  Alert,
-  Animated,
-  Dimensions,
-  Modal,
-  PanResponder,
-  StyleSheet,
-  TouchableOpacity,
-  TouchableWithoutFeedback
+    Alert,
+    Animated,
+    Dimensions,
+    Modal,
+    PanResponder,
+    StyleSheet,
+    TouchableOpacity,
+    TouchableWithoutFeedback
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../common/ThemedText';
@@ -39,7 +39,7 @@ export default function AddAlarmModal({ visible, onClose, onSave, editAlarmId, e
   const isEditMode = !!(editAlarmId && editAlarmData);
   
   // 알람 설정 상태
-  const [selectedTime, setSelectedTime] = useState(editAlarmData?.selectedTime || new Date());
+  const [selectedTime, setSelectedTime] = useState(editAlarmData?.selectedTime || { hours: new Date().getHours(), minutes: new Date().getMinutes() });
   const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>(editAlarmData?.selectedDays || []);
   const [repeatValue, setRepeatValue] = useState(editAlarmData?.repeatValue || '없음');
   const [labelValue, setLabelValue] = useState(editAlarmData?.labelValue || '알람');
@@ -90,9 +90,8 @@ export default function AddAlarmModal({ visible, onClose, onSave, editAlarmId, e
         setSnoozeEnabled(editAlarmData.snoozeValue === '켜짐');
       } else {
         // 신규 모드: 기본값으로 초기화
-        const defaultTime = new Date();
-        defaultTime.setSeconds(0, 0); // 초와 밀리초를 0으로 설정
-        setSelectedTime(defaultTime);
+        const now = new Date();
+        setSelectedTime({ hours: now.getHours(), minutes: now.getMinutes() });
         setSelectedDays([]);
         setRepeatValue('없음');
         setLabelValue('알람');

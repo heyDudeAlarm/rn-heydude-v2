@@ -52,29 +52,33 @@ const dayOfWeekToNumber = (day: DayOfWeek): number => {
 
 // 백그라운드 알람 지원 설정
 export const configureBackgroundAlarms = async (): Promise<void> => {
-  if (Platform.OS === 'ios') {
-    // iOS에서 백그라운드 알람을 위한 추가 설정
-    await Notifications.setNotificationCategoryAsync('background-alarm', [
-      {
-        identifier: 'wake_up',
-        buttonTitle: '일어나기',
-        options: { 
-          opensAppToForeground: true,
-          isDestructive: false,
+  try {
+    if (Platform.OS === 'ios') {
+      // iOS에서 백그라운드 알람을 위한 추가 설정
+      await Notifications.setNotificationCategoryAsync('background-alarm', [
+        {
+          identifier: 'wake_up',
+          buttonTitle: '일어나기',
+          options: { 
+            opensAppToForeground: true,
+            isDestructive: false,
+          },
         },
-      },
-      {
-        identifier: 'stop_alarm',
-        buttonTitle: '알람 중지',
-        options: { 
-          opensAppToForeground: true,
-          isDestructive: true,
+        {
+          identifier: 'stop_alarm',
+          buttonTitle: '알람 중지',
+          options: { 
+            opensAppToForeground: true,
+            isDestructive: true,
+          },
         },
-      },
-    });
+      ]);
+    }
+    
+    console.log('✅ 백그라운드 알람 설정 완료');
+  } catch (error) {
+    console.error('❌ 백그라운드 알람 설정 실패:', error);
   }
-  
-  console.log('✅ 백그라운드 알람 설정 완료');
 };
 
 // 알림 권한 요청
@@ -132,16 +136,16 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
       hiddenPreviewsBodyPlaceholder: '알람이 울리고 있습니다',
     } as any);
   } else {
-    // Android 알람 채널 설정 - 잠금화면 큰 알림을 위해 CRITICAL 설정
+    // Android 알람 채널 설정 - 앱 종료 시에도 알람이 계속 울리도록 MAX 설정
     await Notifications.setNotificationChannelAsync('alarm', {
       name: '알람',
       importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
+      vibrationPattern: [0, 250, 250, 250, 250, 250, 250, 250], // 더 긴 진동 패턴
       lightColor: '#FF231F7C',
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-      bypassDnd: true,
-      description: '알람 알림 - 잠금화면 전체 표시',
-      sound: 'default',
+      bypassDnd: true, // 방해금지 모드 우회
+      description: '앱이 종료되어도 알람이 계속 울립니다',
+      sound: 'default', // 시스템 기본 소리 (앱 종료 시에도 재생)
       enableLights: true,
       enableVibrate: true,
       showBadge: true,
@@ -164,8 +168,8 @@ export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Prom
   try {
     if (selectedDays.length === 0) {
       // 일회성 알람 - 정확히 00초에 울리도록 설정
-      const exactTime = new Date(selectedTime);
-      exactTime.setSeconds(0, 0); // 초와 밀리초를 0으로 설정
+      const exactTime = new Date();
+      exactTime.setHours(selectedTime.hours, selectedTime.minutes, 0, 0);
       
       // 만약 설정한 시간이 현재 시간보다 이전이면 다음날로 설정
       const now = new Date();
@@ -178,7 +182,7 @@ export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Prom
         content: {
           title: '🚨 알람 울림!',
           body: `⏰ ${labelValue}\n지금 일어날 시간입니다!`,
-          sound: soundValue === '없음' ? false : false, // 시스템 소리 비활성화 (커스텀 사운드만 사용)
+          sound: soundValue === '없음' ? false : 'default', // 앱 종료 시에도 소리가 나도록 시스템 기본 소리 사용
           categoryIdentifier: Platform.OS === 'ios' ? 'alarm' : undefined,
           data: { 
             alarmId, 
@@ -238,7 +242,7 @@ export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Prom
           content: {
             title: '🚨 알람 울림!',
             body: `⏰ ${labelValue}\n지금 일어날 시간입니다!`,
-            sound: soundValue === '없음' ? false : false, // 커스텀 사운드만 사용
+            sound: soundValue === '없음' ? false : 'default', // 앱 종료 시에도 소리가 나도록 시스템 기본 소리 사용
             categoryIdentifier: Platform.OS === 'ios' ? 'alarm' : undefined,
             data: { 
               alarmId, 
@@ -262,8 +266,8 @@ export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Prom
           },
           trigger: {
             weekday: dayOfWeekToNumber(day),
-            hour: selectedTime.getHours(),
-            minute: selectedTime.getMinutes(),
+            hour: selectedTime.hours,
+            minute: selectedTime.minutes,
             second: 0, // 정확히 00초에 울리도록 설정
             repeats: true,
           } as any,
@@ -282,6 +286,11 @@ export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Prom
             showWhen: true,
             ongoing: true,
             timeoutAfter: null,
+            // 앱 종료 시에도 알람 지속을 위한 설정
+            autoCancel: false,
+            insistent: true, // 반복적인 알림 소리
+            colorized: true,
+            color: '#FF3B30',
           };
         }
 
@@ -312,7 +321,38 @@ export const cancelAlarm = async (notificationIds: string[]): Promise<void> => {
 export const getStoredAlarms = async (): Promise<StoredAlarmData[]> => {
   try {
     const alarmsJson = await AsyncStorage.getItem('@alarms');
-    return alarmsJson ? JSON.parse(alarmsJson) : [];
+    if (!alarmsJson) return [];
+    
+    const alarms = JSON.parse(alarmsJson);
+    
+    // 기존 Date 형태의 selectedTime을 AlarmTime 형태로 마이그레이션
+    const migratedAlarms = alarms.map((alarm: any) => {
+      if (alarm.selectedTime && typeof alarm.selectedTime === 'string') {
+        // Date 문자열을 AlarmTime으로 변환
+        const date = new Date(alarm.selectedTime);
+        alarm.selectedTime = {
+          hours: date.getHours(),
+          minutes: date.getMinutes()
+        };
+      } else if (alarm.selectedTime && alarm.selectedTime.getHours) {
+        // Date 객체를 AlarmTime으로 변환
+        alarm.selectedTime = {
+          hours: alarm.selectedTime.getHours(),
+          minutes: alarm.selectedTime.getMinutes()
+        };
+      }
+      return alarm;
+    });
+    
+    // 마이그레이션된 데이터 다시 저장
+    if (migratedAlarms.some((alarm: any, index: number) => 
+      JSON.stringify(alarm.selectedTime) !== JSON.stringify(alarms[index].selectedTime)
+    )) {
+      await AsyncStorage.setItem('@alarms', JSON.stringify(migratedAlarms));
+      console.log('✅ 알람 데이터 마이그레이션 완료');
+    }
+    
+    return migratedAlarms;
   } catch (error) {
     console.error('알람 데이터 로드 오류:', error);
     return [];
@@ -336,17 +376,13 @@ export const saveAlarm = async (alarmData: AlarmData, alarmId?: string): Promise
     // 새 알람 스케줄링
     const notificationIds = await scheduleAlarm(alarmData, id);
 
-    // selectedTime을 정확히 00초로 설정
-    const exactSelectedTime = new Date(alarmData.selectedTime);
-    exactSelectedTime.setSeconds(0, 0); // 초와 밀리초를 0으로 설정
-
     const storedAlarm: StoredAlarmData = {
       ...alarmData,
       id,
       isActive: true,
       notificationIds,
       createdAt: new Date().toISOString(),
-      selectedTime: exactSelectedTime, // 정확한 시간으로 저장
+      // selectedTime은 이미 { hours, minutes } 형태로 시간만 저장됨
     };
 
     // 기존 알람 업데이트 또는 새 알람 추가
@@ -435,8 +471,10 @@ export const restoreAlarms = async (): Promise<void> => {
         try {
           // 일회성 알람의 경우 시간이 지났으면 비활성화
           if (alarm.selectedDays.length === 0) {
-            const alarmTime = new Date(alarm.selectedTime);
-            if (alarmTime <= new Date()) {
+            const now = new Date();
+            const alarmTime = new Date();
+            alarmTime.setHours(alarm.selectedTime.hours, alarm.selectedTime.minutes, 0, 0);
+            if (alarmTime <= now) {
               alarm.isActive = false;
               alarm.notificationIds = [];
               updatedAlarms.push(alarm);
@@ -469,13 +507,18 @@ export const getNextAlarmTime = (alarmData: AlarmData): Date | null => {
   
   if (selectedDays.length === 0) {
     // 일회성 알람
-    return selectedTime > now ? selectedTime : null;
+    const alarmDateTime = new Date();
+    alarmDateTime.setHours(selectedTime.hours, selectedTime.minutes, 0, 0);
+    if (alarmDateTime <= now) {
+      alarmDateTime.setDate(alarmDateTime.getDate() + 1);
+    }
+    return alarmDateTime;
   }
   
   // 반복 알람 - 다음에 울릴 시간 계산
   const currentDay = now.getDay(); // 0: 일요일, 1: 월요일, ...
   const currentTime = now.getHours() * 60 + now.getMinutes();
-  const alarmTime = selectedTime.getHours() * 60 + selectedTime.getMinutes();
+  const alarmTime = selectedTime.hours * 60 + selectedTime.minutes;
   
   const dayMap: Record<DayOfWeek, number> = {
     sunday: 0,
@@ -492,7 +535,7 @@ export const getNextAlarmTime = (alarmData: AlarmData): Date | null => {
   // 오늘 알람이 남아있는지 확인
   if (activeDays.includes(currentDay) && currentTime < alarmTime) {
     const nextAlarm = new Date(now);
-    nextAlarm.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+    nextAlarm.setHours(selectedTime.hours, selectedTime.minutes, 0, 0);
     return nextAlarm;
   }
   
@@ -506,7 +549,7 @@ export const getNextAlarmTime = (alarmData: AlarmData): Date | null => {
     if (activeDays.includes(nextDay)) {
       const nextAlarm = new Date(now);
       nextAlarm.setDate(now.getDate() + daysToAdd);
-      nextAlarm.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+      nextAlarm.setHours(selectedTime.hours, selectedTime.minutes, 0, 0);
       return nextAlarm;
     }
     

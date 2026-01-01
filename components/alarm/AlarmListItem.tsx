@@ -1,5 +1,5 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { StoredAlarmData } from '@/types/alarm';
+import { AlarmTime, StoredAlarmData } from '@/types/alarm';
 import React, { useRef } from 'react';
 import { Alert, Animated, PanResponder, StyleSheet, Switch, TouchableOpacity } from 'react-native';
 import { ThemedText } from '../common/ThemedText';
@@ -102,13 +102,9 @@ export default function AlarmListItem({ alarm, onToggle, onEdit, onDelete }: Ala
     );
   };
 
-  // 시간을 12시간 형식으로 변환
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('ko-KR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
+  // 시간을 24시간 형식으로 변환
+  const formatTime = (alarmTime: AlarmTime) => {
+    return `${String(alarmTime.hours).padStart(2, '0')}:${String(alarmTime.minutes).padStart(2, '0')}`;
   };
 
   // 반복 설정이 "없음"이 아닐 때만 표시

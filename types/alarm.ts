@@ -3,8 +3,13 @@ export type DayOfWeek = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursda
 
 export type PresetKey = 'never' | 'everyday' | 'weekdays' | 'weekends';
 
+export interface AlarmTime {
+  hours: number;
+  minutes: number;
+}
+
 export interface AlarmData {
-  selectedTime: Date;
+  selectedTime: AlarmTime;
   selectedDays: DayOfWeek[];
   repeatValue: string;
   labelValue: string;
