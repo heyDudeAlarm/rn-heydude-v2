@@ -1,15 +1,14 @@
-import { AlarmData, DayOfWeek } from '@/types/alarm';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
-import { SoundType } from './soundManager';
+import { AlarmData, DayOfWeek } from "@/types/alarm";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
+import { SoundType } from "./soundManager";
 
 // 사운드 값을 SoundType으로 변환 - 이제 단순히 문자열 그대로 사용
 const getSoundTypeFromValue = (soundValue: string): SoundType => {
   // 파일명에 확장자가 없으면 그대로 사용 (loadSound에서 .wav 추가)
   // 있으면 그대로 사용
-  return soundValue || 'default';
+  return soundValue || "default";
 };
 
 // 알람 데이터 인터페이스 확장
@@ -24,8 +23,11 @@ export interface StoredAlarmData extends AlarmData {
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     // 백그라운드에서는 알림만 표시하고 사운드는 포그라운드 리스너에서 처리
-    console.log('알림 핸들러에서 알림 수신:', notification.request.content.data);
-    
+    console.log(
+      "알림 핸들러에서 알림 수신:",
+      notification.request.content.data
+    );
+
     return {
       shouldShowAlert: true,
       shouldPlaySound: false, // 커스텀 사운드를 사용하므로 시스템 사운드 비활성화
@@ -53,31 +55,31 @@ const dayOfWeekToNumber = (day: DayOfWeek): number => {
 // 백그라운드 알람 지원 설정
 export const configureBackgroundAlarms = async (): Promise<void> => {
   try {
-    if (Platform.OS === 'ios') {
+    if (Platform.OS === "ios") {
       // iOS에서 백그라운드 알람을 위한 추가 설정
-      await Notifications.setNotificationCategoryAsync('background-alarm', [
+      await Notifications.setNotificationCategoryAsync("background-alarm", [
         {
-          identifier: 'wake_up',
-          buttonTitle: '일어나기',
-          options: { 
+          identifier: "wake_up",
+          buttonTitle: "일어나기",
+          options: {
             opensAppToForeground: true,
             isDestructive: false,
           },
         },
         {
-          identifier: 'stop_alarm',
-          buttonTitle: '알람 중지',
-          options: { 
+          identifier: "stop_alarm",
+          buttonTitle: "알람 중지",
+          options: {
             opensAppToForeground: true,
             isDestructive: true,
           },
         },
       ]);
     }
-    
-    console.log('✅ 백그라운드 알람 설정 완료');
+
+    console.log("✅ 백그라운드 알람 설정 완료");
   } catch (error) {
-    console.error('❌ 백그라운드 알람 설정 실패:', error);
+    console.error("❌ 백그라운드 알람 설정 실패:", error);
   }
 };
 
@@ -85,73 +87,78 @@ export const configureBackgroundAlarms = async (): Promise<void> => {
 export const requestNotificationPermissions = async (): Promise<boolean> => {
   // Expo Go에서도 알림이 작동하므로 Device.isDevice 체크 제거
   // 웹 환경에서만 제외
-  if (Platform.OS === 'web') {
-    console.warn('알림은 모바일 디바이스에서만 작동합니다');
+  if (Platform.OS === "web") {
+    console.warn("알림은 모바일 디바이스에서만 작동합니다");
     return false;
   }
 
   try {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
-    if (existingStatus !== 'granted') {
+    if (existingStatus !== "granted") {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
 
-    if (finalStatus !== 'granted') {
+    if (finalStatus !== "granted") {
       return false;
     }
   } catch (error) {
-    console.error('알림 권한 확인 중 오류:', error);
+    console.error("알림 권한 확인 중 오류:", error);
     return false;
   }
 
   // 플랫폼별 알람 설정
-  if (Platform.OS === 'ios') {
+  if (Platform.OS === "ios") {
     // iOS 잠금화면에서 더 눈에 띄는 알람을 위한 카테고리 설정
-    await Notifications.setNotificationCategoryAsync('alarm', [
-      {
-        identifier: 'stop',
-        buttonTitle: '⏹️ 중지',
-        options: { 
-          opensAppToForeground: true,
-          isDestructive: false,
+    await Notifications.setNotificationCategoryAsync(
+      "alarm",
+      [
+        {
+          identifier: "stop",
+          buttonTitle: "⏹️ 중지",
+          options: {
+            opensAppToForeground: true,
+            isDestructive: false,
+          },
         },
-      },
-      {
-        identifier: 'snooze',
-        buttonTitle: '⏰ 5분 후',
-        options: { 
-          opensAppToForeground: false,
-          isDestructive: false,
+        {
+          identifier: "snooze",
+          buttonTitle: "⏰ 5분 후",
+          options: {
+            opensAppToForeground: false,
+            isDestructive: false,
+          },
         },
-      },
-      {
-        identifier: 'open',
-        buttonTitle: '📱 앱 열기',
-        options: { 
-          opensAppToForeground: true,
-          isDestructive: false,
+        {
+          identifier: "open",
+          buttonTitle: "📱 앱 열기",
+          options: {
+            opensAppToForeground: true,
+            isDestructive: false,
+          },
         },
-      },
-    ], {
-      // iOS에서 잠금화면 큰 알림을 위한 옵션
-      previewFormat: '%@',
-      intentIdentifiers: [],
-      hiddenPreviewsBodyPlaceholder: '알람이 울리고 있습니다',
-    } as any);
+      ],
+      {
+        // iOS에서 잠금화면 큰 알림을 위한 옵션
+        previewFormat: "%@",
+        intentIdentifiers: [],
+        hiddenPreviewsBodyPlaceholder: "알람이 울리고 있습니다",
+      } as any
+    );
   } else {
     // Android 알람 채널 설정 - 앱 종료 시에도 알람이 계속 울리도록 MAX 설정
-    await Notifications.setNotificationChannelAsync('alarm', {
-      name: '알람',
+    await Notifications.setNotificationChannelAsync("alarm", {
+      name: "알람",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250, 250, 250, 250, 250], // 더 긴 진동 패턴
-      lightColor: '#FF231F7C',
+      lightColor: "#FF231F7C",
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
       bypassDnd: true, // 방해금지 모드 우회
-      description: '앱이 종료되어도 알람이 계속 울립니다',
-      sound: 'default', // 시스템 기본 소리 (앱 종료 시에도 재생)
+      description: "앱이 종료되어도 알람이 계속 울립니다",
+      sound: "default", // 시스템 기본 소리 (앱 종료 시에도 재생)
       enableLights: true,
       enableVibrate: true,
       showBadge: true,
@@ -162,10 +169,13 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
 };
 
 // 알람 스케줄링
-export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Promise<string[]> => {
+export const scheduleAlarm = async (
+  alarmData: AlarmData,
+  alarmId: string
+): Promise<string[]> => {
   const hasPermission = await requestNotificationPermissions();
   if (!hasPermission) {
-    throw new Error('알림 권한이 필요합니다');
+    throw new Error("알림 권한이 필요합니다");
   }
 
   const notificationIds: string[] = [];
@@ -176,26 +186,26 @@ export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Prom
       // 일회성 알람 - 정확히 00초에 울리도록 설정
       const exactTime = new Date();
       exactTime.setHours(selectedTime.hours, selectedTime.minutes, 0, 0);
-      
+
       // 만약 설정한 시간이 현재 시간보다 이전이면 다음날로 설정
       const now = new Date();
       if (exactTime <= now) {
         exactTime.setDate(exactTime.getDate() + 1);
       }
-      
+
       const soundType = getSoundTypeFromValue(soundValue);
       const notificationRequest: any = {
         content: {
-          title: '🚨 알람 울림!',
+          title: "🚨 알람 울림!",
           body: `⏰ ${labelValue}\n지금 일어날 시간입니다!`,
-          sound: soundValue === '없음' ? false : 'default', // 앱 종료 시에도 소리가 나도록 시스템 기본 소리 사용
-          categoryIdentifier: Platform.OS === 'ios' ? 'alarm' : undefined,
-          data: { 
-            alarmId, 
-            type: 'alarm',
+          sound: soundValue === "없음" ? false : "default", // 앱 종료 시에도 소리가 나도록 시스템 기본 소리 사용
+          categoryIdentifier: Platform.OS === "ios" ? "alarm" : undefined,
+          data: {
+            alarmId,
+            type: "alarm",
             soundType: soundType, // 커스텀 사운드 정보 추가
             soundValue: soundValue,
-            labelValue: labelValue
+            labelValue: labelValue,
           },
           priority: Notifications.AndroidNotificationPriority.MAX,
           vibrate: [0, 250, 250, 250],
@@ -203,13 +213,13 @@ export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Prom
           autoDismiss: false,
           badge: 1,
           // iOS 잠금화면 최적화 및 앱 종료 시에도 알람 지속
-          ...(Platform.OS === 'ios' && {
+          ...(Platform.OS === "ios" && {
             critical: true, // Critical alert로 설정 (방해금지 모드도 우회)
-            interruptionLevel: 'critical',
-            subtitle: '지금 일어나세요!',
-            threadIdentifier: 'alarm',
+            interruptionLevel: "critical",
+            subtitle: "지금 일어나세요!",
+            threadIdentifier: "alarm",
             // 앱이 종료되어도 알람이 계속 울리도록 설정
-            launchImageName: 'AlarmLaunchImage',
+            launchImageName: "AlarmLaunchImage",
             attachments: [],
           }),
         },
@@ -217,16 +227,16 @@ export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Prom
       };
 
       // Android의 경우 잠금화면 큰 알림 및 앱 종료 시에도 알람 지속
-      if (Platform.OS === 'android') {
+      if (Platform.OS === "android") {
         notificationRequest.content.android = {
-          channelId: 'alarm',
-          priority: 'max',
-          importance: 'high',
+          channelId: "alarm",
+          priority: "max",
+          importance: "high",
           // 앱이 종료되어도 전체 화면 알람 표시
           fullScreenIntent: {
-            launchActivity: 'default',
+            launchActivity: "default",
           },
-          visibility: 'public',
+          visibility: "public",
           showWhen: true,
           ongoing: true, // 지속적인 알림
           timeoutAfter: null, // 자동 사라지지 않음
@@ -234,11 +244,13 @@ export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Prom
           autoCancel: false,
           insistent: true, // 반복적인 알림
           colorized: true,
-          color: '#FF3B30',
+          color: "#FF3B30",
         };
       }
 
-      const notificationId = await Notifications.scheduleNotificationAsync(notificationRequest);
+      const notificationId = await Notifications.scheduleNotificationAsync(
+        notificationRequest
+      );
       notificationIds.push(notificationId);
     } else {
       // 반복 알람
@@ -246,16 +258,16 @@ export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Prom
       for (const day of selectedDays) {
         const notificationRequest: any = {
           content: {
-            title: '🚨 알람 울림!',
+            title: "🚨 알람 울림!",
             body: `⏰ ${labelValue}\n지금 일어날 시간입니다!`,
-            sound: soundValue === '없음' ? false : 'default', // 앱 종료 시에도 소리가 나도록 시스템 기본 소리 사용
-            categoryIdentifier: Platform.OS === 'ios' ? 'alarm' : undefined,
-            data: { 
-              alarmId, 
-              type: 'alarm',
+            sound: soundValue === "없음" ? false : "default", // 앱 종료 시에도 소리가 나도록 시스템 기본 소리 사용
+            categoryIdentifier: Platform.OS === "ios" ? "alarm" : undefined,
+            data: {
+              alarmId,
+              type: "alarm",
               soundType: soundType, // 커스텀 사운드 정보 추가
               soundValue: soundValue,
-              labelValue: labelValue
+              labelValue: labelValue,
             },
             priority: Notifications.AndroidNotificationPriority.MAX,
             vibrate: [0, 250, 250, 250],
@@ -263,11 +275,11 @@ export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Prom
             autoDismiss: false,
             badge: 1,
             // iOS 잠금화면 최적화
-            ...(Platform.OS === 'ios' && {
+            ...(Platform.OS === "ios" && {
               critical: true, // Critical alert로 설정 (방해금지 모드도 우회)
-              interruptionLevel: 'critical',
-              subtitle: '지금 일어나세요!',
-              threadIdentifier: 'alarm',
+              interruptionLevel: "critical",
+              subtitle: "지금 일어나세요!",
+              threadIdentifier: "alarm",
             }),
           },
           trigger: {
@@ -280,15 +292,15 @@ export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Prom
         };
 
         // Android의 경우 잠금화면 큰 알림을 위한 설정 추가
-        if (Platform.OS === 'android') {
+        if (Platform.OS === "android") {
           notificationRequest.content.android = {
-            channelId: 'alarm',
-            priority: 'max',
-            importance: 'high',
+            channelId: "alarm",
+            priority: "max",
+            importance: "high",
             fullScreenIntent: {
-              launchActivity: 'default',
+              launchActivity: "default",
             },
-            visibility: 'public',
+            visibility: "public",
             showWhen: true,
             ongoing: true,
             timeoutAfter: null,
@@ -296,19 +308,21 @@ export const scheduleAlarm = async (alarmData: AlarmData, alarmId: string): Prom
             autoCancel: false,
             insistent: true, // 반복적인 알림 소리
             colorized: true,
-            color: '#FF3B30',
+            color: "#FF3B30",
           };
         }
 
-        const notificationId = await Notifications.scheduleNotificationAsync(notificationRequest);
+        const notificationId = await Notifications.scheduleNotificationAsync(
+          notificationRequest
+        );
         notificationIds.push(notificationId);
       }
     }
 
     return notificationIds;
   } catch (error) {
-    console.error('알람 스케줄링 오류:', error);
-    throw new Error('알람을 설정할 수 없습니다');
+    console.error("알람 스케줄링 오류:", error);
+    throw new Error("알람을 설정할 수 없습니다");
   }
 };
 
@@ -319,61 +333,68 @@ export const cancelAlarm = async (notificationIds: string[]): Promise<void> => {
       await Notifications.cancelScheduledNotificationAsync(id);
     }
   } catch (error) {
-    console.error('알람 취소 오류:', error);
+    console.error("알람 취소 오류:", error);
   }
 };
 
 // 저장된 알람 목록 가져오기
 export const getStoredAlarms = async (): Promise<StoredAlarmData[]> => {
   try {
-    const alarmsJson = await AsyncStorage.getItem('@alarms');
+    const alarmsJson = await AsyncStorage.getItem("@alarms");
     if (!alarmsJson) return [];
-    
+
     const alarms = JSON.parse(alarmsJson);
-    
+
     // 기존 Date 형태의 selectedTime을 AlarmTime 형태로 마이그레이션
     const migratedAlarms = alarms.map((alarm: any) => {
-      if (alarm.selectedTime && typeof alarm.selectedTime === 'string') {
+      if (alarm.selectedTime && typeof alarm.selectedTime === "string") {
         // Date 문자열을 AlarmTime으로 변환
         const date = new Date(alarm.selectedTime);
         alarm.selectedTime = {
           hours: date.getHours(),
-          minutes: date.getMinutes()
+          minutes: date.getMinutes(),
         };
       } else if (alarm.selectedTime && alarm.selectedTime.getHours) {
         // Date 객체를 AlarmTime으로 변환
         alarm.selectedTime = {
           hours: alarm.selectedTime.getHours(),
-          minutes: alarm.selectedTime.getMinutes()
+          minutes: alarm.selectedTime.getMinutes(),
         };
       }
       return alarm;
     });
-    
+
     // 마이그레이션된 데이터 다시 저장
-    if (migratedAlarms.some((alarm: any, index: number) => 
-      JSON.stringify(alarm.selectedTime) !== JSON.stringify(alarms[index].selectedTime)
-    )) {
-      await AsyncStorage.setItem('@alarms', JSON.stringify(migratedAlarms));
-      console.log('✅ 알람 데이터 마이그레이션 완료');
+    if (
+      migratedAlarms.some(
+        (alarm: any, index: number) =>
+          JSON.stringify(alarm.selectedTime) !==
+          JSON.stringify(alarms[index].selectedTime)
+      )
+    ) {
+      await AsyncStorage.setItem("@alarms", JSON.stringify(migratedAlarms));
+      console.log("✅ 알람 데이터 마이그레이션 완료");
     }
-    
+
     return migratedAlarms;
   } catch (error) {
-    console.error('알람 데이터 로드 오류:', error);
+    console.error("알람 데이터 로드 오류:", error);
     return [];
   }
 };
 
 // 알람 저장
-export const saveAlarm = async (alarmData: AlarmData, alarmId?: string): Promise<StoredAlarmData> => {
+export const saveAlarm = async (
+  alarmData: AlarmData,
+  alarmId?: string
+): Promise<StoredAlarmData> => {
   try {
     const alarms = await getStoredAlarms();
     const id = alarmId || `alarm_${Date.now()}`;
-    
+
     // 기존 알람이 있다면 먼저 취소
     if (alarmId) {
-      const existingAlarm = alarms.find(alarm => alarm.id === alarmId);
+      const existingAlarm = alarms.find((alarm) => alarm.id === alarmId);
       if (existingAlarm) {
         await cancelAlarm(existingAlarm.notificationIds);
       }
@@ -394,17 +415,17 @@ export const saveAlarm = async (alarmData: AlarmData, alarmId?: string): Promise
     // 기존 알람 업데이트 또는 새 알람 추가
     let updatedAlarms;
     if (alarmId) {
-      updatedAlarms = alarms.map(alarm => 
+      updatedAlarms = alarms.map((alarm) =>
         alarm.id === alarmId ? storedAlarm : alarm
       );
     } else {
       updatedAlarms = [...alarms, storedAlarm];
     }
 
-    await AsyncStorage.setItem('@alarms', JSON.stringify(updatedAlarms));
+    await AsyncStorage.setItem("@alarms", JSON.stringify(updatedAlarms));
     return storedAlarm;
   } catch (error) {
-    console.error('알람 저장 오류:', error);
+    console.error("알람 저장 오류:", error);
     throw error;
   }
 };
@@ -413,32 +434,35 @@ export const saveAlarm = async (alarmData: AlarmData, alarmId?: string): Promise
 export const deleteAlarm = async (alarmId: string): Promise<void> => {
   try {
     const alarms = await getStoredAlarms();
-    const alarmToDelete = alarms.find(alarm => alarm.id === alarmId);
-    
+    const alarmToDelete = alarms.find((alarm) => alarm.id === alarmId);
+
     if (alarmToDelete) {
       // 스케줄된 알림들 취소
       await cancelAlarm(alarmToDelete.notificationIds);
-      
+
       // 저장된 알람 목록에서 제거
-      const updatedAlarms = alarms.filter(alarm => alarm.id !== alarmId);
-      await AsyncStorage.setItem('@alarms', JSON.stringify(updatedAlarms));
+      const updatedAlarms = alarms.filter((alarm) => alarm.id !== alarmId);
+      await AsyncStorage.setItem("@alarms", JSON.stringify(updatedAlarms));
     }
   } catch (error) {
-    console.error('알람 삭제 오류:', error);
+    console.error("알람 삭제 오류:", error);
     throw error;
   }
 };
 
 // 알람 토글 (활성화/비활성화)
-export const toggleAlarm = async (alarmId: string, isActive: boolean): Promise<void> => {
+export const toggleAlarm = async (
+  alarmId: string,
+  isActive: boolean
+): Promise<void> => {
   try {
     const alarms = await getStoredAlarms();
-    const alarmIndex = alarms.findIndex(alarm => alarm.id === alarmId);
-    
+    const alarmIndex = alarms.findIndex((alarm) => alarm.id === alarmId);
+
     if (alarmIndex === -1) return;
-    
+
     const alarm = alarms[alarmIndex];
-    
+
     if (isActive) {
       // 알람 활성화: 새로 스케줄링
       const notificationIds = await scheduleAlarm(alarm, alarmId);
@@ -448,13 +472,13 @@ export const toggleAlarm = async (alarmId: string, isActive: boolean): Promise<v
       await cancelAlarm(alarm.notificationIds);
       alarm.notificationIds = [];
     }
-    
+
     alarm.isActive = isActive;
     alarms[alarmIndex] = alarm;
-    
-    await AsyncStorage.setItem('@alarms', JSON.stringify(alarms));
+
+    await AsyncStorage.setItem("@alarms", JSON.stringify(alarms));
   } catch (error) {
-    console.error('알람 토글 오류:', error);
+    console.error("알람 토글 오류:", error);
     throw error;
   }
 };
@@ -464,14 +488,14 @@ export const restoreAlarms = async (): Promise<void> => {
   try {
     const alarms = await getStoredAlarms();
     const hasPermission = await requestNotificationPermissions();
-    
+
     if (!hasPermission) return;
 
     // 모든 기존 스케줄 취소 후 재설정
     await Notifications.cancelAllScheduledNotificationsAsync();
-    
+
     const updatedAlarms: StoredAlarmData[] = [];
-    
+
     for (const alarm of alarms) {
       if (alarm.isActive) {
         try {
@@ -479,7 +503,12 @@ export const restoreAlarms = async (): Promise<void> => {
           if (alarm.selectedDays.length === 0) {
             const now = new Date();
             const alarmTime = new Date();
-            alarmTime.setHours(alarm.selectedTime.hours, alarm.selectedTime.minutes, 0, 0);
+            alarmTime.setHours(
+              alarm.selectedTime.hours,
+              alarm.selectedTime.minutes,
+              0,
+              0
+            );
             if (alarmTime <= now) {
               alarm.isActive = false;
               alarm.notificationIds = [];
@@ -487,7 +516,7 @@ export const restoreAlarms = async (): Promise<void> => {
               continue;
             }
           }
-          
+
           // 알람 재스케줄링
           const notificationIds = await scheduleAlarm(alarm, alarm.id);
           alarm.notificationIds = notificationIds;
@@ -499,10 +528,10 @@ export const restoreAlarms = async (): Promise<void> => {
       }
       updatedAlarms.push(alarm);
     }
-    
-    await AsyncStorage.setItem('@alarms', JSON.stringify(updatedAlarms));
+
+    await AsyncStorage.setItem("@alarms", JSON.stringify(updatedAlarms));
   } catch (error) {
-    console.error('알람 복원 오류:', error);
+    console.error("알람 복원 오류:", error);
   }
 };
 
@@ -510,7 +539,7 @@ export const restoreAlarms = async (): Promise<void> => {
 export const getNextAlarmTime = (alarmData: AlarmData): Date | null => {
   const { selectedTime, selectedDays } = alarmData;
   const now = new Date();
-  
+
   if (selectedDays.length === 0) {
     // 일회성 알람
     const alarmDateTime = new Date();
@@ -520,12 +549,12 @@ export const getNextAlarmTime = (alarmData: AlarmData): Date | null => {
     }
     return alarmDateTime;
   }
-  
+
   // 반복 알람 - 다음에 울릴 시간 계산
   const currentDay = now.getDay(); // 0: 일요일, 1: 월요일, ...
   const currentTime = now.getHours() * 60 + now.getMinutes();
   const alarmTime = selectedTime.hours * 60 + selectedTime.minutes;
-  
+
   const dayMap: Record<DayOfWeek, number> = {
     sunday: 0,
     monday: 1,
@@ -535,33 +564,35 @@ export const getNextAlarmTime = (alarmData: AlarmData): Date | null => {
     friday: 5,
     saturday: 6,
   };
-  
-  const activeDays = selectedDays.map(day => dayMap[day]).sort((a, b) => a - b);
-  
+
+  const activeDays = selectedDays
+    .map((day) => dayMap[day])
+    .sort((a, b) => a - b);
+
   // 오늘 알람이 남아있는지 확인
   if (activeDays.includes(currentDay) && currentTime < alarmTime) {
     const nextAlarm = new Date(now);
     nextAlarm.setHours(selectedTime.hours, selectedTime.minutes, 0, 0);
     return nextAlarm;
   }
-  
+
   // 다음 활성 요일 찾기
   let nextDay = currentDay + 1;
   let daysToAdd = 1;
-  
+
   while (daysToAdd <= 7) {
     if (nextDay > 6) nextDay = 0;
-    
+
     if (activeDays.includes(nextDay)) {
       const nextAlarm = new Date(now);
       nextAlarm.setDate(now.getDate() + daysToAdd);
       nextAlarm.setHours(selectedTime.hours, selectedTime.minutes, 0, 0);
       return nextAlarm;
     }
-    
+
     nextDay++;
     daysToAdd++;
   }
-  
+
   return null;
 };

@@ -19,13 +19,24 @@
           "background-processing",
           "background-fetch",
           "remote-notification",
+          "audio",
+          "background-processing",
+          "background-fetch",
+          "remote-notification",
+          "audio",
+          "background-processing",
+          "background-fetch",
+          "remote-notification",
           "audio"
         ],
         "NSUserNotificationsUsageDescription": "이 앱은 알람 기능을 위해 알림을 사용합니다.",
         "BGTaskSchedulerPermittedIdentifiers": [
           "com.heydude.background-alarm",
+          "com.heydude.background-alarm",
+          "com.heydude.background-alarm",
           "com.heydude.background-alarm"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.jinaoah.heydude"
     },
