@@ -6,8 +6,10 @@ import {
     Alert,
     Animated,
     Dimensions,
+    Linking,
     Modal,
     PanResponder,
+    Platform,
     StyleSheet,
     TouchableOpacity,
     TouchableWithoutFeedback
@@ -264,11 +266,35 @@ export default function AddAlarmModal({ visible, onClose, onSave, editAlarmId, e
       
     } catch (error: any) {
       console.error('알람 저장 오류:', error);
-      Alert.alert(
-        '오류',
-        error.message || '알람 설정 중 오류가 발생했습니다.',
-        [{ text: '확인' }]
-      );
+
+      // 권한 오류인 경우 설정으로 이동 안내
+      if (error.message?.includes('권한')) {
+        Alert.alert(
+          '알림 권한 필요',
+          Platform.OS === 'android'
+            ? 'Expo Go 앱의 알림 권한이 거부되어 있습니다.\n\n안드로이드 설정 > 앱 > Expo Go > 권한에서 알림을 허용해주세요.'
+            : '알림 권한이 필요합니다. 설정에서 알림을 허용해주세요.',
+          [
+            { text: '취소', style: 'cancel' },
+            {
+              text: '설정으로 이동',
+              onPress: () => {
+                if (Platform.OS === 'android') {
+                  Linking.openSettings();
+                } else {
+                  Linking.openURL('app-settings:');
+                }
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          '오류',
+          error.message || '알람 설정 중 오류가 발생했습니다.',
+          [{ text: '확인' }]
+        );
+      }
     } finally {
       setIsSaving(false);
     }

@@ -83,21 +83,27 @@ export const configureBackgroundAlarms = async (): Promise<void> => {
 
 // 알림 권한 요청
 export const requestNotificationPermissions = async (): Promise<boolean> => {
-  if (!Device.isDevice) {
-    console.warn('알림은 실제 디바이스에서만 작동합니다');
+  // Expo Go에서도 알림이 작동하므로 Device.isDevice 체크 제거
+  // 웹 환경에서만 제외
+  if (Platform.OS === 'web') {
+    console.warn('알림은 모바일 디바이스에서만 작동합니다');
     return false;
   }
 
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
 
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
 
-  if (finalStatus !== 'granted') {
-    console.warn('알림 권한이 거부되었습니다');
+    if (finalStatus !== 'granted') {
+      return false;
+    }
+  } catch (error) {
+    console.error('알림 권한 확인 중 오류:', error);
     return false;
   }
 
