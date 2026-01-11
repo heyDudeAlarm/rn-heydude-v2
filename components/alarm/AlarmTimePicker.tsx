@@ -1,4 +1,5 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { AlarmTime } from '@/types/alarm';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useState } from 'react';
 import { Platform, StyleSheet, TouchableOpacity } from 'react-native';
@@ -6,20 +7,35 @@ import { ThemedText } from '../common/ThemedText';
 import { ThemedView } from '../common/ThemedView';
 
 interface AlarmTimePickerProps {
-  selectedTime: Date;
-  onTimeChange: (time: Date) => void;
+  selectedTime: AlarmTime;
+  onTimeChange: (time: AlarmTime) => void;
 }
 
 export default function AlarmTimePicker({ selectedTime, onTimeChange }: AlarmTimePickerProps) {
   const tintColor = useThemeColor({}, 'tint');
   const [showAndroidPicker, setShowAndroidPicker] = useState(false);
 
+  // AlarmTime을 Date 객체로 변환
+  const getDateFromAlarmTime = (alarmTime: AlarmTime): Date => {
+    const date = new Date();
+    date.setHours(alarmTime.hours, alarmTime.minutes, 0, 0);
+    return date;
+  };
+
+  // Date 객체를 AlarmTime으로 변환
+  const getAlarmTimeFromDate = (date: Date): AlarmTime => {
+    return {
+      hours: date.getHours(),
+      minutes: date.getMinutes()
+    };
+  };
+
   const handleTimeChange = (event: any, date?: Date) => {
     if (Platform.OS === 'android') {
       setShowAndroidPicker(false);
     }
     if (date) {
-      onTimeChange(date);
+      onTimeChange(getAlarmTimeFromDate(date));
     }
   };
 
@@ -27,7 +43,7 @@ export default function AlarmTimePicker({ selectedTime, onTimeChange }: AlarmTim
     <ThemedView style={styles.timePickerContainer}>
       {Platform.OS === 'ios' ? (
         <DateTimePicker
-          value={selectedTime}
+          value={getDateFromAlarmTime(selectedTime)}
           mode="time"
           display="spinner"
           onChange={handleTimeChange}
@@ -41,17 +57,13 @@ export default function AlarmTimePicker({ selectedTime, onTimeChange }: AlarmTim
             onPress={() => setShowAndroidPicker(true)}
           >
             <ThemedText style={[styles.androidTimeButtonText, { color: tintColor }]}>
-              {selectedTime.toLocaleTimeString('ko-KR', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: false 
-              })}
+              {String(selectedTime.hours).padStart(2, '0')}:{String(selectedTime.minutes).padStart(2, '0')}
             </ThemedText>
           </TouchableOpacity>
           
           {showAndroidPicker && (
             <DateTimePicker
-              value={selectedTime}
+              value={getDateFromAlarmTime(selectedTime)}
               mode="time"
               display="default"
               onChange={handleTimeChange}

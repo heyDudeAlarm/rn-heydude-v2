@@ -1,14 +1,12 @@
+import { StoredAlarmData } from '@/types/alarm';
 import React from 'react';
-import { FlatList, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { ThemedText } from '../common/ThemedText';
 import { ThemedView } from '../common/ThemedView';
-import { AlarmData } from './AddAlarmModal';
 import AlarmListItem from './AlarmListItem';
 
-export interface AlarmItem extends AlarmData {
-  id: string;
-  isEnabled: boolean;
-}
+// StoredAlarmData를 그대로 사용하되, isEnabled 대신 isActive 사용
+export interface AlarmItem extends StoredAlarmData {}
 
 interface AlarmListProps {
   alarms: AlarmItem[];
@@ -29,20 +27,17 @@ export default function AlarmList({ alarms, onToggleAlarm, onEditAlarm, onDelete
 
   return (
     <ThemedView style={styles.container}>
-      <FlatList
-        data={alarms}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
+      <ThemedView style={styles.listContent}>
+        {alarms.map((item) => (
           <AlarmListItem
+            key={item.id}
             alarm={item}
             onToggle={onToggleAlarm}
             onEdit={onEditAlarm}
             onDelete={onDeleteAlarm}
           />
-        )}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-      />
+        ))}
+      </ThemedView>
     </ThemedView>
   );
 }

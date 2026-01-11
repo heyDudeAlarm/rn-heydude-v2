@@ -8,6 +8,11 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import "react-native-url-polyfill/auto";
 
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { configureBackgroundAlarms, restoreAlarms } from "@/utils/alarmService";
+import { cleanupNotificationListeners, setupNotificationListeners } from "@/utils/notificationListeners";
+import { useEffect } from "react";
+
 // React Native Blob polyfill
 if (typeof global.Blob === "undefined") {
   global.Blob = class Blob {
@@ -38,7 +43,10 @@ if (typeof global.Blob === "undefined") {
   } as any;
 }
 
-import { useColorScheme } from "@/hooks/use-color-scheme";
+// 개발자 도구 로드
+if (__DEV__) {
+  require("@/utils/devTools");
+}
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -46,6 +54,31 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  // 앱 시작 시 알람 복원 및 알림 리스너 설정
+  useEffect(() => {
+    const initializeAlarms = async () => {
+      try {
+        // 백그라운드 알람 설정 초기화
+        await configureBackgroundAlarms();
+        
+        // 기존 알람 복원
+        await restoreAlarms();
+      } catch (error) {
+        console.error('알람 초기화 중 오류:', error);
+      }
+    };
+
+    // 알림 리스너 설정
+    const subscriptions = setupNotificationListeners();
+    
+    initializeAlarms();
+
+    // 클린업 함수
+    return () => {
+      cleanupNotificationListeners(subscriptions);
+    };
+  }, []);
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>

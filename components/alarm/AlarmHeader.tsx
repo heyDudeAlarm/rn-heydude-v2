@@ -14,6 +14,7 @@ export default function AlarmHeader({ onAddAlarm }: AlarmHeaderProps) {
   return (
     <ThemedView style={styles.titleContainer}>
       <ThemedText type="title">Alarm</ThemedText>
+      
       <TouchableOpacity 
         style={styles.addButton}
         onPress={onAddAlarm}

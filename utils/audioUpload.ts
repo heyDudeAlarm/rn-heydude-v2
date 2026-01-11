@@ -34,8 +34,7 @@ function formatFileSize(bytes: number): string {
  */
 export async function pickAndUploadAudio(
   bucket: string,
-  folder: string = "",
-  customFileName?: string
+  folder: string = ""
 ): Promise<AudioUploadResult> {
   try {
     // 오디오 파일 선택
@@ -64,34 +63,9 @@ export async function pickAndUploadAudio(
 
     // 파일 확장자 추출
     const fileExtension = file.name.split(".").pop() || "mp3";
-
-    // Base64 인코딩 함수 (파일명에 사용 가능한 URL-safe Base64)
-    const encodeBase64UrlSafe = (str: string): string => {
-      // React Native에서 한글 지원을 위해 encodeURIComponent + btoa 사용
-      return btoa(unescape(encodeURIComponent(str)))
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=/g, "");
-    };
-
-    // 커스텀 파일명이 있으면 사용하고, 없으면 타임스탬프 기반 파일명 사용
-    let fileName: string;
-    let displayName: string; // UI에 표시할 이름 (한글 포함 가능)
-
-    if (customFileName && customFileName.trim() !== "") {
-      displayName = customFileName.trim();
-      // 파일명 형식: [Base64인코딩된한글명]--[타임스탬프].확장자
-      const encodedName = encodeBase64UrlSafe(displayName);
-      const timestamp = Date.now();
-      fileName = `${encodedName}--${timestamp}.${fileExtension}`;
-    } else {
-      // 자동 생성된 경우
-      const timestamp = Date.now();
-      const randomId = Math.random().toString(36).substring(7);
-      fileName = `${timestamp}-${randomId}.${fileExtension}`;
-      displayName = fileName;
-    }
-
+    const fileName = `${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(7)}.${fileExtension}`;
     const filePath = folder ? `${folder}/${fileName}` : fileName;
 
     // MIME 타입 결정
@@ -111,7 +85,7 @@ export async function pickAndUploadAudio(
 
     return {
       ...uploadResult,
-      fileName,
+      fileName: file.name,
       fileSize: file.size,
     };
   } catch (error) {

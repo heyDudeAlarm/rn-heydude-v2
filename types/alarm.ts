@@ -3,8 +3,13 @@ export type DayOfWeek = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursda
 
 export type PresetKey = 'never' | 'everyday' | 'weekdays' | 'weekends';
 
+export interface AlarmTime {
+  hours: number;
+  minutes: number;
+}
+
 export interface AlarmData {
-  selectedTime: Date;
+  selectedTime: AlarmTime;
   selectedDays: DayOfWeek[];
   repeatValue: string;
   labelValue: string;
@@ -12,8 +17,16 @@ export interface AlarmData {
   snoozeValue: string;
 }
 
+// 저장된 알람 데이터 (ID와 상태 정보 포함)
+export interface StoredAlarmData extends AlarmData {
+  id: string;
+  isActive: boolean;
+  notificationIds: string[];
+  createdAt: string;
+}
+
 // 요일 목록과 라벨 매핑
-export const DAYS_OF_WEEK: Array<{ key: DayOfWeek; label: string }> = [
+export const DAYS_OF_WEEK: { key: DayOfWeek; label: string }[] = [
   { key: 'sunday', label: '일요일마다' },
   { key: 'monday', label: '월요일마다' },
   { key: 'tuesday', label: '화요일마다' },

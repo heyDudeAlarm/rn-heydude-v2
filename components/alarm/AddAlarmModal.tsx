@@ -1,14 +1,18 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { AlarmData, DayOfWeek, getRepeatDisplayText } from '@/types/alarm';
+import { AlarmData, DayOfWeek, getRepeatDisplayText, StoredAlarmData } from '@/types/alarm';
+import { saveAlarm } from '@/utils/alarmService';
 import React, { useState } from 'react';
 import {
-  Animated,
-  Dimensions,
-  Modal,
-  PanResponder,
-  StyleSheet,
-  TouchableOpacity,
-  TouchableWithoutFeedback
+    Alert,
+    Animated,
+    Dimensions,
+    Linking,
+    Modal,
+    PanResponder,
+    Platform,
+    StyleSheet,
+    TouchableOpacity,
+    TouchableWithoutFeedback
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '../common/ThemedText';
@@ -23,21 +27,26 @@ const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 interface AddAlarmModalProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (alarmData: AlarmData) => void;
+  onSave: (alarmData: StoredAlarmData) => void;
+  editAlarmId?: string; // 편집할 알람의 ID (없으면 새 알람)
+  editAlarmData?: StoredAlarmData; // 편집할 알람의 데이터
 }
 
-export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModalProps) {
+export default function AddAlarmModal({ visible, onClose, onSave, editAlarmId, editAlarmData }: AddAlarmModalProps) {
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
   const insets = useSafeAreaInsets();
   
+  // 편집 모드인지 확인
+  const isEditMode = !!(editAlarmId && editAlarmData);
+  
   // 알람 설정 상태
-  const [selectedTime, setSelectedTime] = useState(new Date());
-  const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([]);
-  const [repeatValue, setRepeatValue] = useState('없음');
-  const [labelValue, setLabelValue] = useState('알람');
-  const [soundValue, setSoundValue] = useState('레이더');
-  const [snoozeEnabled, setSnoozeEnabled] = useState(false);
+  const [selectedTime, setSelectedTime] = useState(editAlarmData?.selectedTime || { hours: new Date().getHours(), minutes: new Date().getMinutes() });
+  const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>(editAlarmData?.selectedDays || []);
+  const [repeatValue, setRepeatValue] = useState(editAlarmData?.repeatValue || '없음');
+  const [labelValue, setLabelValue] = useState(editAlarmData?.labelValue || '알람');
+  const [soundValue, setSoundValue] = useState(editAlarmData?.soundValue || '레이더');
+  const [snoozeEnabled, setSnoozeEnabled] = useState(editAlarmData?.snoozeValue === '켜짐');
   
   // 화면 전환 상태
   const [currentView, setCurrentView] = useState<'main' | 'repeat' | 'sound'>('main');
@@ -70,21 +79,41 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
     }
   }, [visible, translateY]);
 
+  // 모달이 열릴 때 데이터 초기화
+  React.useEffect(() => {
+    if (visible) {
+      if (isEditMode && editAlarmData) {
+        // 편집 모드: 기존 데이터로 초기화
+        setSelectedTime(editAlarmData.selectedTime);
+        setSelectedDays(editAlarmData.selectedDays);
+        setRepeatValue(editAlarmData.repeatValue);
+        setLabelValue(editAlarmData.labelValue);
+        setSoundValue(editAlarmData.soundValue);
+        setSnoozeEnabled(editAlarmData.snoozeValue === '켜짐');
+      } else {
+        // 신규 모드: 기본값으로 초기화
+        const now = new Date();
+        setSelectedTime({ hours: now.getHours(), minutes: now.getMinutes() });
+        setSelectedDays([]);
+        setRepeatValue('없음');
+        setLabelValue('알람');
+        setSoundValue('레이더');
+        setSnoozeEnabled(false);
+      }
+      // 화면을 메인으로 리셋
+      setCurrentView('main');
+      slideAnim.setValue(0);
+    }
+  }, [visible, isEditMode, editAlarmData, slideAnim]);
+
   // 드래그 제스처 처리
   const panResponder = React.useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => {
-          console.log('PanResponder onStartShouldSetPanResponder, currentView:', currentView);
-          const shouldSet = currentView === 'main';
-          console.log('PanResponder shouldSet:', shouldSet);
-          return shouldSet; // 메인 화면일 때만 PanResponder 활성화
-        },
+        onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: (_, gestureState) => {
-          // 메인 화면이고 아래쪽으로 드래그할 때만 반응
-          const shouldSet = currentView === 'main' && gestureState.dy > 0 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
-          console.log('PanResponder onMoveShouldSetPanResponder, shouldSet:', shouldSet);
-          return shouldSet;
+          // 아래쪽으로 드래그할 때만 반응 (세로 드래그가 가로 드래그보다 클 때)
+          return gestureState.dy > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
         },
         onPanResponderMove: (_, gestureState) => {
           // 아래쪽으로만 드래그 허용
@@ -114,13 +143,12 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
           }
         },
       }),
-    [translateY, onClose, currentView]
+    [translateY, onClose]
   );
 
   // 반복 설정 관련 함수들
 
   const handleRepeatPress = () => {
-    console.log('Repeat button pressed, showing repeat settings');
     setCurrentView('repeat');
     Animated.timing(slideAnim, {
       toValue: -SCREEN_WIDTH, // 왼쪽으로 슬라이드
@@ -130,7 +158,6 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
   };
 
   const handleRepeatSave = (newSelectedDays: DayOfWeek[]) => {
-    console.log('Repeat save called with:', newSelectedDays);
     setSelectedDays(newSelectedDays);
     setRepeatValue(getRepeatDisplayText(newSelectedDays));
     goBackToMain();
@@ -147,12 +174,10 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
   };
 
   const handleLabelChange = (text: string) => {
-    console.log('Label changed to:', text);
     setLabelValue(text);
   };
 
   const handleSoundPress = () => {
-    console.log('Sound button pressed, showing sound settings');
     setCurrentView('sound');
     Animated.timing(slideAnim, {
       toValue: -SCREEN_WIDTH * 2, // 사운드 화면으로 슬라이드 (세 번째 화면)
@@ -162,6 +187,8 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
   };
 
   const handleSoundSave = (selectedSound: string) => {
+    console.log('🔊 사운드 저장:', selectedSound);
+    
     // 사운드 키를 표시용 텍스트로 변환
     const soundLabels: { [key: string]: string } = {
       'radar': '레이더',
@@ -173,7 +200,13 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
       'wave': '웨이브',
       'marimba': '마림바'
     };
-    setSoundValue(soundLabels[selectedSound] || selectedSound);
+    
+    const displayText = soundLabels[selectedSound] || selectedSound;
+    setSoundValue(displayText);
+    console.log('✅ 사운드 값 설정:', displayText);
+    
+    // 메인 화면으로 돌아가기
+    goBackToMain();
   };
 
   // 현재 사운드 값을 키로 변환하는 함수
@@ -192,28 +225,79 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
   };
 
   const handleSnoozeToggle = (toggled: boolean) => {
-    console.log('Snooze toggle changed to:', toggled);
     setSnoozeEnabled(toggled);
   };
 
-  const handleComplete = () => {
-    // 알람 데이터를 JSON 객체로 수집
-    const alarmData: AlarmData = {
-      selectedTime,
-      selectedDays,
-      repeatValue,
-      labelValue,
-      soundValue,
-      snoozeValue: snoozeEnabled ? '켜짐' : '꺼짐'
-    };
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleComplete = async () => {
+    if (isSaving) return;
     
-    console.log('Complete button pressed, alarm data:', alarmData);
+    setIsSaving(true);
     
-    // 메인페이지로 데이터 전달
-    onSave(alarmData);
-    
-    // 모달 닫기
-    onClose();
+    try {
+      // 알람 데이터 수집
+      const alarmData: AlarmData = {
+        selectedTime,
+        selectedDays,
+        repeatValue,
+        labelValue,
+        soundValue,
+        snoozeValue: snoozeEnabled ? '켜짐' : '꺼짐'
+      };
+      
+      // 알람 저장 및 스케줄링
+      const savedAlarm = await saveAlarm(alarmData, editAlarmId);
+      
+      // 성공 메시지
+      Alert.alert(
+        '알람 설정 완료',
+        isEditMode ? '알람이 수정되었습니다.' : '알람이 추가되었습니다.',
+        [
+          {
+            text: '확인',
+            onPress: () => {
+              onSave(savedAlarm);
+              onClose();
+            }
+          }
+        ]
+      );
+      
+    } catch (error: any) {
+      console.error('알람 저장 오류:', error);
+
+      // 권한 오류인 경우 설정으로 이동 안내
+      if (error.message?.includes('권한')) {
+        Alert.alert(
+          '알림 권한 필요',
+          Platform.OS === 'android'
+            ? 'Expo Go 앱의 알림 권한이 거부되어 있습니다.\n\n안드로이드 설정 > 앱 > Expo Go > 권한에서 알림을 허용해주세요.'
+            : '알림 권한이 필요합니다. 설정에서 알림을 허용해주세요.',
+          [
+            { text: '취소', style: 'cancel' },
+            {
+              text: '설정으로 이동',
+              onPress: () => {
+                if (Platform.OS === 'android') {
+                  Linking.openSettings();
+                } else {
+                  Linking.openURL('app-settings:');
+                }
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          '오류',
+          error.message || '알람 설정 중 오류가 발생했습니다.',
+          [{ text: '확인' }]
+        );
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -240,6 +324,7 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
               transform: [{ translateY }],
             },
           ]}
+          {...panResponder.panHandlers}
         >
           {/* 드래그 핸들 */}
           <ThemedView style={[styles.dragHandle, { backgroundColor: tintColor, opacity: 0.3 }]} />
@@ -255,7 +340,6 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
               {/* 메인 화면 */}
               <ThemedView 
                 style={styles.screenContainer}
-                {...(currentView === 'main' ? panResponder.panHandlers : {})}
               >
                 {/* 헤더 */}
                 <ThemedView style={styles.header}>
@@ -266,11 +350,17 @@ export default function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModa
                       allowFontScaling={false}
                       numberOfLines={1}
                     >
-                      알람 추가
+                      {isEditMode ? '알람 편집' : '알람 추가'}
                     </ThemedText>
                   </ThemedView>
-                  <TouchableOpacity onPress={handleComplete} style={styles.closeButton}>
-                    <ThemedText style={styles.completeText}>완료</ThemedText>
+                  <TouchableOpacity 
+                    onPress={handleComplete} 
+                    style={[styles.closeButton, isSaving && styles.disabledButton]}
+                    disabled={isSaving}
+                  >
+                    <ThemedText style={[styles.completeText, isSaving && styles.disabledText]}>
+                      {isSaving ? '저장 중...' : '완료'}
+                    </ThemedText>
                   </TouchableOpacity>
                 </ThemedView>
 
@@ -398,5 +488,11 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH,
     flex: 1,
     padding: 20,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  disabledText: {
+    opacity: 0.5,
   },
 });
